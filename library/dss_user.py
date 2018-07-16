@@ -162,7 +162,7 @@ def run_module():
         password=dict(type='str', required=False, default=None, no_log=True),
         set_password_at_creation_only=dict(type='bool', required=False, default=True),
         email=dict(type='str', required=False, default=None),
-        display_name=dict(type='str', required=False, default="{{yaye}}"),
+        display_name=dict(type='str', required=False, default=None),
         groups=dict(type='list', required=False, default=None),
         profile=dict(type='str', required=False, default=None),
         source_type=dict(type='str', required=False, default="LOCAL"),
@@ -222,7 +222,7 @@ def run_module():
         # Build the new user definition
         # TODO: be careful that the key names changes between creation and edition
         new_user_def = copy.deepcopy(current_user) if user_exists else {} # Used for modification
-        result["previous_user_def"] = new_user_def
+        result["previous_user_def"] = copy.deepcopy(new_user_def)
         for key, api_param in [("email","email"),("display_name","displayName"),("profile","userProfile"),("groups","groups")]:
             if module.params.get(key,None) is not None:
                 new_user_def[key if create_user else api_param] = module.params[key]
