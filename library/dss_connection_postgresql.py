@@ -3,7 +3,7 @@
 ANSIBLE_METADATA = {
     'metadata_version': '1.1',
     'status': ['preview'],
-    'supported_by': 'dataiku-tools'
+    'supported_by': 'dataiku-ansible-modules'
 }
 
 DOCUMENTATION = '''
