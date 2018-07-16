@@ -51,7 +51,7 @@ EXAMPLES = '''
     api_key_name: myadminkey
   register: dss_connection_info
 
-- name: Setup some limites
+- name: Setup some limits
   become: true
   become_user: dataiku
   dss_general_settings:
