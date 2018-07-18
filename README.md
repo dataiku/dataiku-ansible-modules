@@ -8,7 +8,49 @@ Requirements
 
 These modules require the Dataiku DSS API to be installed and available in the Python runtime executing the module. The `ansible_python_interpreter` option might be useful when using a virtualenv.
 
-Example Playbook
+Installation
+------------
+
+## Basic
+
+If the first directory of your roles path is writable, just use:
+
+ ```
+ansible-galaxy install git+https://github.com/dataiku/dataiku-ansible-modules
+ ```
+
+Or specify the path in which you want the role to be installed:
+
+ ```
+ansible-galaxy install git+https://github.com/dataiku/dataiku-ansible-modules --roles-path=/path/to/your/roles
+ ```
+
+## Force update
+
+If the role already exists, `ansible-galaxy` wont update it unless you the `--force` flag.
+
+## Automation and versioning
+
+You can use a `yaml` file with a content like this:
+
+```YAML
+---
+- src: git+https://github.com/dataiku/dataiku-ansible-modules
+  name: dataiku-ansible-modules
+  version: master
+```
+
+Then install it like this:
+
+```
+ansible-galaxy install -r /path/to/your/file.yml
+```
+
+This allows you to:
+- Force a specific version
+- Rename the role on the fly
+
+Example playbook
 ----------------
 
 ```YAML
