@@ -59,7 +59,7 @@ Example playbook
   become_user: dataiku
   pre_tasks:
     - name:  Install the Dataiku DSS Api
-      become: true
+      become_user: root
       pip:
         name: "git+https://github.com/dataiku/dataiku-api-client-python#egg=dataiku-api-client"
   roles:
