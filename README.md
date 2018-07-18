@@ -6,7 +6,7 @@ This role packages custom modules to administrate Dataiku Data Science Studio pl
 Requirements
 ------------
 
-These modules require the Dataiku DSS API to be installed and available in the Python runtime executing the module. The `ansible_python_interpreter` option might be useful when using a virtualenv.
+These modules require the [Dataiku DSS API](https://github.com/dataiku/dataiku-api-client-python) to be installed and available in the Python runtime executing the module. The `ansible_python_interpreter` option might be useful when using a virtualenv.
 
 Installation
 ------------
