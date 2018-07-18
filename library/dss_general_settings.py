@@ -71,10 +71,10 @@ EXAMPLES = '''
 
 RETURN = '''
 previous_settings:
-    description: The previous values
+    description: Previous values held by required settings before update
     type: dict
-settings:
-    description: The current values
+dss_general_settings:
+    description: Return the current values after update
     type: dict
 message:
     description: MODIFIED or UNCHANGED
@@ -123,7 +123,7 @@ def run_module():
         host=dict(type='str', required=False, default="127.0.0.1"),
         port=dict(type='str', required=False, default=None),
         api_key=dict(type='str', required=False, default=None),
-        settings=dict(type='dict', required=True),
+        settings=dict(type='dict', required=False, default={}),
     )
 
     module = AnsibleModule(
@@ -154,7 +154,7 @@ def run_module():
 
         # Prepare the result for dry-run mode
         result["previous_settings"] = current_values
-        result["settings"] = args.settings
+        result["dss_general_settings"] = general_settings.settings
         result["changed"] = (current_values != args.settings)
         if result["changed"]:
             result["message"] = "MODIFIED"
