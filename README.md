@@ -57,6 +57,11 @@ Example playbook
 - hosts: servers
   become: true
   become_user: dataiku
+  pre_tasks:
+    - name:  Install the Dataiku DSS Api
+      become: true
+      pip:
+        name: "git+https://github.com/dataiku/dataiku-api-client-python#egg=dataiku-api-client"
   roles:
      - dataiku-dss-modules # Makes the modules available
   tasks:
