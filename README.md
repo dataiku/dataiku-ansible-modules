@@ -78,16 +78,22 @@ Example playbook
     - dss_general_settings:
         connect_to: "{{dss_connection_info}}"
         settings:
-          limits:
-            attachmentBytes:
-              hard: -1
-              soft: -1
-            memSampleBytes:
-              hard: 524288000
-              soft: 104857600
-            shakerMemTableBytes:
-              hard: 524288000
-              soft: -1
+					ldapSettings:
+						enabled: true
+						url: ldap://ldap.internal.example.com/dc=example,dc=com
+						bindDN: uid=readonly,ou=users,dc=example,dc=com
+						bindPassword: theserviceaccountpassword
+						useTls: true
+						autoImportUsers: true
+						userFilter: (&(objectClass=posixAccount)(uid={USERNAME}))
+						defaultUserProfile: READER
+						displayNameAttribute: gecos
+						emailAttribute: mail
+						enableGroups: true
+						groupFilter: (&(objectClass=posixGroup)(memberUid={USERDN}))
+						groupNameAttribute: cn
+						groupProfiles: []
+						authorizedGroups: dss-users
 ```
 
 License
