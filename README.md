@@ -78,22 +78,22 @@ Example playbook
     - dss_general_settings:
         connect_to: "{{dss_connection_info}}"
         settings:
-					ldapSettings:
-						enabled: true
-						url: ldap://ldap.internal.example.com/dc=example,dc=com
-						bindDN: uid=readonly,ou=users,dc=example,dc=com
-						bindPassword: theserviceaccountpassword
-						useTls: true
-						autoImportUsers: true
-						userFilter: (&(objectClass=posixAccount)(uid={USERNAME}))
-						defaultUserProfile: READER
-						displayNameAttribute: gecos
-						emailAttribute: mail
-						enableGroups: true
-						groupFilter: (&(objectClass=posixGroup)(memberUid={USERDN}))
-						groupNameAttribute: cn
-						groupProfiles: []
-						authorizedGroups: dss-users
+          ldapSettings:
+            enabled: true
+            url: ldap://ldap.internal.example.com/dc=example,dc=com
+            bindDN: uid=readonly,ou=users,dc=example,dc=com
+            bindPassword: theserviceaccountpassword
+            useTls: true
+            autoImportUsers: true
+            userFilter: (&(objectClass=posixAccount)(uid={USERNAME}))
+            defaultUserProfile: READER
+            displayNameAttribute: gecos
+            emailAttribute: mail
+            enableGroups: true
+            groupFilter: (&(objectClass=posixGroup)(memberUid={USERDN}))
+            groupNameAttribute: cn
+            groupProfiles: []
+            authorizedGroups: dss-users
 ```
 
 License
