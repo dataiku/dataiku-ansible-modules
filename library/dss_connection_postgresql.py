@@ -67,14 +67,6 @@ options:
             - Wether the connection is supposed to exist or not. Possible values are "present" and "absent"
         default: present
         required: false
-    set_password_at_creation_only:
-        description:
-            - Allow not to change the password to the requested one if the connection already exists. This is
-              the only way to actually achieve idempotency, so it is true by default. If set to false, the task
-              will always have the "changed" status because we cannot check if the password was actually different before
-              or not
-        default: true
-        required: false
 author:
     - Jean-Bernard Jansen (jean-bernard.jansen@dataiku.com)
 '''
@@ -174,7 +166,6 @@ def run_module():
         api_key=dict(type='str', required=False, default=None),
         name=dict(type='str', required=True),
         state=dict(type='str', required=False, default="present"),
-        set_password_at_creation_only=dict(type='bool', required=False, default=True),
         postgresql_host=dict(type='str', default=None, required=False),
         postgresql_port=dict(type='str', default=None, required=False),
         user=dict(type='str', default=None, required=False),
