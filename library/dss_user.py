@@ -185,7 +185,6 @@ def run_module():
 
     result = dict(
         changed=False,
-        original_message=args.login,
         message='UNCHANGED',
     )
 
@@ -225,7 +224,10 @@ def run_module():
         result["previous_user_def"] = copy.deepcopy(new_user_def)
         for key, api_param in [("email","email"),("display_name","displayName"),("profile","userProfile"),("groups","groups")]:
             if module.params.get(key,None) is not None:
-                new_user_def[key if create_user else api_param] = module.params[key]
+                value = module.params[key]
+                if isinstance(value,basestring):
+                    value = value.decode("UTF-8")
+                new_user_def[key if create_user else api_param] = value
         if user_exists and args.password is not None and not args.set_password_at_creation_only:
             new_user_def["password"] = args.password
 
@@ -255,7 +257,17 @@ def run_module():
         # Apply the changes
         if result["changed"]:
             if create_user:
-                client.create_user(args.login, args.password, **new_user_def)
+                create_excluded_keys = ["email"]
+                create_excluded_values = {}
+                for create_excluded_key in create_excluded_keys:
+                    if new_user_def.get(create_excluded_key,None) is not None:
+                        create_excluded_values[create_excluded_key] = new_user_def[create_excluded_key]
+                        del new_user_def[create_excluded_key]
+                new_user = client.create_user(args.login, args.password, **new_user_def)
+                if module.params.get("email",None) is not None:
+                    new_user_def_mod = new_user.get_definition()
+                    new_user_def_mod.update(create_excluded_values)
+                    new_user.set_definition(new_user_def_mod)
             elif user_exists:
                 if args.state == "absent":
                     user.delete()
