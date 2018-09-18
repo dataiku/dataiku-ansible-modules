@@ -109,7 +109,7 @@ def run_module():
         exec_name = "apinode-admin" if nodetype == "api" else "dsscli"
         api_keys_list = json.loads(subprocess.check_output(["{}/bin/{}".format(args.datadir,exec_name),"admin-keys-list" if nodetype == "api" else "api-keys-list","--output","json"]))
         for key in api_keys_list:
-            if key["label"] == args.api_key_name:
+            if key.get("label",None) == args.api_key_name:
                 api_key = key["key"]
                 if not module.check_mode:
                     logging.info("Found existing API Key labeled \"{}\".".format(args.api_key_name))
