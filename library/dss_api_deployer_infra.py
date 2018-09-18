@@ -187,13 +187,17 @@ def run_module():
             else:
                 infra = api_deployer.get_infra(args.id)
             infra_settings = infra.get_settings()
+            previous_settings = copy.deepcopy(infra_settings.get_raw())
 
             # Remove all / push all
             infra_settings.get_raw()["permissions"] = args.permissions
-            infra_settings.get_raw()["api_nodes"] = []
+            infra_settings.get_raw()["apiNodes"] = []
             for api_node in args.api_nodes:
                 infra_settings.add_apinode(api_node["url"], api_node["admin_api_key"], api_node.get("graphite_prefix",None))
             infra_settings.save()
+            if infra_settings.get_raw() != previous_settings and not result["changed"]:
+                result["changed"] = True
+                result["message"] = "MODIFIED"
 
         if args.state == "absent" and exits:
             # TODO implement
