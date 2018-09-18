@@ -33,6 +33,10 @@ options:
         description:
             - The API Key to authenticate on the API. Mandatory if connect_to is not used
         required: false
+    carbonapi_url:
+        description:
+            - The URL of the Carbon API server in which API Nodes metrics can be found
+        required: false
 author:
     - Jean-Bernard Jansen (jean-bernard.jansen@dataiku.com)
 '''
@@ -131,6 +135,7 @@ def run_module():
         type=dict(type='str', required=True),
         api_nodes=dict(type='list', required=True),
         permissions=dict(type='list',required=False,default=[]),
+        carbonapi_url=dict(type='str',required=False,default=None),
     )
 
     module = AnsibleModule(
@@ -194,6 +199,12 @@ def run_module():
             infra_settings.get_raw()["apiNodes"] = []
             for api_node in args.api_nodes:
                 infra_settings.add_apinode(api_node["url"], api_node["admin_api_key"], api_node.get("graphite_prefix",None))
+            if args.carbonapi_url is not None:
+                infra_settings.get_raw().update({
+                    "carbonAPISettings":{
+                        "carbonAPIURL": args.carbonapi_url
+                    }
+                })
             infra_settings.save()
             if infra_settings.get_raw() != previous_settings and not result["changed"]:
                 result["changed"] = True
