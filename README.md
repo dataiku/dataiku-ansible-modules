@@ -63,7 +63,7 @@ Example playbook
       pip:
         name: "git+https://github.com/dataiku/dataiku-api-client-python#egg=dataiku-api-client"
   roles:
-     - dataiku-dss-modules # Makes the modules available
+     - dataiku-ansible-modules # Makes the modules available
   tasks:
     - dss_get_credentials:
         datadir: /home/dataiku/dss
