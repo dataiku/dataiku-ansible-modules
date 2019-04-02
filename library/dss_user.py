@@ -1,5 +1,7 @@
 #!/usr/bin/env python2
 
+from __future__ import absolute_import
+import six
 ANSIBLE_METADATA = {
     'metadata_version': '1.1',
     'status': ['preview'],
@@ -225,7 +227,7 @@ def run_module():
         for key, api_param in [("email","email"),("display_name","displayName"),("profile","userProfile"),("groups","groups")]:
             if module.params.get(key,None) is not None:
                 value = module.params[key]
-                if isinstance(value,basestring):
+                if isinstance(value,six.string_types):
                     value = value.decode("UTF-8")
                 new_user_def[key if create_user else api_param] = value
         if user_exists and args.password is not None and not args.set_password_at_creation_only:

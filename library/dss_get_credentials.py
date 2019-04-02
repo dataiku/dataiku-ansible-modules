@@ -1,5 +1,6 @@
 #!/usr/bin/env python2
 
+from __future__ import absolute_import
 ANSIBLE_METADATA = {
     'metadata_version': '1.1',
     'status': ['preview'],
@@ -57,7 +58,7 @@ from ansible.module_utils.basic import AnsibleModule
 import copy
 import traceback
 import os
-import ConfigParser
+import six.moves.configparser
 import imp
 import logging
 import subprocess
@@ -97,7 +98,7 @@ def run_module():
         logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s', filename="{}/run/ansible.log".format(args.datadir),filemode="a")
 
         # Read the port
-        config = ConfigParser.RawConfigParser()
+        config = six.moves.configparser.RawConfigParser()
         config.read("{}/install.ini".format(args.datadir))
         port =  str(config.getint("server","port")) 
         nodetype = config.get("general","nodetype").strip()

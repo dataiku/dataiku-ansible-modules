@@ -233,7 +233,7 @@ def run_module():
         try:
             current = group.get_definition()
         except DataikuException as e:
-            if e.message.startswith("com.dataiku.dip.server.controllers.NotFoundException"):
+            if str(e).startswith("com.dataiku.dip.server.controllers.NotFoundException"):
                 exists = False
                 if args.state == "present":
                     create = True
