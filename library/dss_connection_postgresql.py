@@ -100,6 +100,7 @@ from ansible.module_utils.basic import AnsibleModule
 from dataikuapi import DSSClient
 from dataikuapi.dss.admin import DSSConnection
 from dataikuapi.utils import DataikuException
+import collections
 import copy
 import traceback
 import re
