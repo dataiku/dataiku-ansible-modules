@@ -246,15 +246,15 @@ def run_module():
                 if args.state == "absent":
                     connection.delete()
                 elif current_def != new_def or 0 < len(encrypted_fields["params"]):
-                    pass
-                    # TODO: Bugfix about password here
                     #for field in encrypted_fields_list:
                         #new_def_value = encrypted_fields.get(field, None)
-                        #if new_def_value is not None:
-                            #new_def["params"][field] = new_def_value
-                        #else:
-                            #new_def["params"][field] = encrypted_fields_before_change.get(field)
-                    #result["message"] = str(connection.set_definition(new_def))
+                        ## TODO: Bugfix about password here
+                        #del new_def["params"][field]
+                        ##if new_def_value is not None:
+                            ##new_def["params"][field] = new_def_value
+                        ##else:
+                            ##new_def["params"][field] = encrypted_fields_before_change.get(field)
+                    result["message"] = str(connection.set_definition(new_def))
                     #if 0 < len(encrypted_fields["params"]):
                         ## Get again the definition to test again the encrypted fields
                         #new_def_after_submit = connection.get_definition()
