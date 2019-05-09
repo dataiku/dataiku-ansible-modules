@@ -198,7 +198,7 @@ def run_module():
             infra_settings.get_raw()["permissions"] = args.permissions
             infra_settings.get_raw()["apiNodes"] = []
             for api_node in args.api_nodes:
-                infra_settings.add_apinode(api_node["url"], api_node["admin_api_key"], api_node.get("graphite_prefix",None))
+                infra_settings.add_apinode(api_node["url"], api_node["admin_api_key"], api_node.get("graphite_prefix",""))
             if args.carbonapi_url is not None:
                 infra_settings.get_raw().update({
                     "carbonAPISettings":{
@@ -207,6 +207,8 @@ def run_module():
                 })
             infra_settings.save()
             if infra_settings.get_raw() != previous_settings and not result["changed"]:
+                #result["previous"] = previous_settings
+                #result["new"] = infra_settings.get_raw()
                 result["changed"] = True
                 result["message"] = "MODIFIED"
 

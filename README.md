@@ -50,8 +50,23 @@ This allows you to:
 - Force a specific version
 - Rename the role on the fly
 
+Basic use
+---------
+
+To have the modules available in your own roles, provided the role is in your role path, you can add the role as a dependency of your own. Reference it in the `meta/main.yml` file of your role:
+
+```YAML
+---
+dependencies:
+ - dataiku-ansible-modules
+```
+
+Alternatively, a less ansiblish way is to add the `library` subdirectory of this role in the modules path.
+
 Example playbook
 ----------------
+
+Find some more examples [here](doc/examples/).
 
 ```YAML
 - hosts: servers

@@ -1,0 +1,2 @@
+ansible
+git+https://github.com/dataiku/dataiku-api-client-python@release/5.1#egg=dataiku-api-client

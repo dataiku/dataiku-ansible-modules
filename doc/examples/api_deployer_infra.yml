@@ -1,0 +1,305 @@
+# Design, Automation, API Nodes
+#
+# This playbook deploys a full DSS infrastructure with a Design node,
+# an Automation node also acting as API Model Deployer and two
+# static infrastructures of API nodes wiht 1 node each
+#
+# This playbook expects hosts to be refereed in the inventory as
+# design_node, automation_node, api_node_dev, api_node_prod
+#
+# The target distritbution is CentOS 7.x
+#
+# NOTE: You need a license file for this playbook to run properly
+#
+# You can use an inventory of this form:
+#
+# ---
+# all:
+#   hosts:
+#     design:
+#       ansible_host: DSS_DESIGN_HOSTNAME_OR_IP
+#     automation:
+#       ansible_host: DSS_AUTOMATION_HOSTNAME_OR_IP
+#     api_dev:
+#       ansible_host: DSS_API_DEV_HOSTNAME_OR_IP
+#     api_prod:
+#       ansible_host: DSS_API_PROD_HOSTNAME_OR_IP
+#   vars:
+#     ansible_ssh_user: REMOTE_USER_NAME
+#
+
+
+---
+- name: Initial setup common to all hosts
+  hosts: all
+  vars: &common_vars
+    dss_version: "5.1.3"
+    dss_api_version: "5.1"
+    dss_service_user: dataiku
+    dss_install_dir_location: /opt/dataiku
+    dss_data_dirs_location: /data/dataiku
+    dss_node_poll_fqdn: true # If true, use ansible_fqdn else use ansible_host
+    dss_license_file: license.json
+    dss_admin_user: dataiku
+    dss_admin_password: "passw0rd4DSSAdmin!!"
+  tasks:
+    - name: Set per-host facts
+      set_fact:
+        dss_node_hostname: "{{ansible_fqdn if dss_node_poll_fqdn else ansible_host}}"
+      tags: [setup,dss-setup,dss]
+
+    - name: Disable SELinux
+      become: true
+      selinux:
+        state: disabled
+      tags: [setup]
+
+    - name: Increase system limits as required by DSS
+      become: true
+      pam_limits:
+        domain: "{{dss_service_user}}"
+        limit_item: "{{item}}"
+        limit_type: "-"
+        value: 65536
+      loop:
+        - nofile
+        - nproc
+      tags: [setup]
+
+    - name: Update all packages
+      become: true
+      yum:
+        name: "*"
+        state: latest
+        update_cache: true
+      tags: [setup]
+
+    - name: Create service user
+      become: true
+      user:
+        name: "{{dss_service_user}}"
+        state: present
+      tags: [setup, dss-setup]
+
+    - name: Create public directories
+      become: true
+      file:
+        path: "{{dss_install_dir_location}}"
+        state: directory
+        owner: "{{dss_service_user}}"
+        mode: "u=rwx,g=rx,o=rx"
+      tags: [setup, dss-setup]
+
+    - name: Create private directories
+      become: true
+      file:
+        path: "{{dss_data_dirs_location}}"
+        state: directory
+        owner: "{{dss_service_user}}"
+        mode: "u=rwx,g=,o="
+      tags: [setup, dss-setup]
+
+    - name: Download DSS
+      become: true
+      become_user: "{{dss_service_user}}"
+      get_url:
+        url: "https://cdn.downloads.dataiku.com/public/studio/{{dss_version}}/dataiku-dss-{{dss_version}}.tar.gz"
+        dest: "{{dss_install_dir_location}}/dataiku-dss-{{dss_version}}.tar.gz"
+      tags: [setup, dss-setup]
+
+    - name: Unarchive DSS
+      become: true
+      become_user: "{{dss_service_user}}"
+      unarchive:
+        src: "{{dss_install_dir_location}}/dataiku-dss-{{dss_version}}.tar.gz"
+        dest: "{{dss_install_dir_location}}"
+        creates: "{{dss_install_dir_location}}/dataiku-dss-{{dss_version}}"
+        remote_src: yes
+      tags: [setup, dss-setup]
+
+    - name: Install DSS dependencies
+      become: true
+      shell:
+        cmd: |
+          {{dss_install_dir_location}}/dataiku-dss-{{dss_version}}/scripts/install/install-deps.sh -yes 2>&1 > /tmp/dss-install-deps.log
+          touch {{dss_install_dir_location}}/dataiku-dss-{{dss_version}}/scripts/install/DEPS-INSTALLED
+        creates: "{{dss_install_dir_location}}/dataiku-dss-{{dss_version}}/scripts/install/DEPS-INSTALLED"
+      tags: [setup, dss-setup]
+
+    - name: Install Dataiku python API
+      become: true
+      pip:
+        name: "git+https://github.com/dataiku/dataiku-api-client-python@release/5.1#egg=dataiku-api-client"
+        state: latest
+        #state: forcereinstall # Useful when release/5.1 gets updated
+      tags: [setup, dss-setup, dss-api]
+
+#
+# NOTE: The following set_fact plays should be
+# replaced by a populated inventory
+# Not done here to keep a single file example
+#
+- name: Set Dev API Node facts
+  hosts: api_dev
+  tasks:
+    - set_fact:
+        type: api
+        datadir: api_dev
+        port: 10000
+      tags: [dss]
+
+- name: Set Prod API Node facts
+  hosts: api_prod
+  tasks:
+    - set_fact:
+        type: api
+        datadir: api_prod
+        port: 10000
+      tags: [dss]
+
+- name: Set Automation Node facts
+  hosts: automation
+  tasks:
+    - set_fact:
+        type: automation
+        datadir: automation
+        port: 10000
+      tags: [dss]
+
+- name: Set Design Node facts
+  hosts: design
+  tasks:
+    - set_fact:
+        type: design
+        datadir: design
+        port: 10000
+      tags: [dss]
+
+- name: Install the studios
+  hosts: all
+  vars:
+    <<: *common_vars
+  tasks:
+    - name: Run the Dataiku DSS installer
+      become: true
+      become_user: "{{dss_service_user}}"
+      command: "{{dss_install_dir_location}}/dataiku-dss-{{dss_version}}/installer.sh -d /home/{{dss_service_user}}/{{datadir}} -p {{port}} -t {{type}}"
+      args:
+        creates: "/home/{{dss_service_user}}/{{datadir}}/dss-version.json"
+      tags: [dss]
+
+    - name: Copy license file
+      become: true
+      become_user: "{{dss_service_user}}"
+      copy:
+        src: "{{dss_license_file}}"
+        dest: "/home/{{dss_service_user}}/{{datadir}}/config/license.json"
+      tags: [dss]
+
+    - name: Install boot service
+      become: true
+      command: "{{dss_install_dir_location}}/dataiku-dss-{{dss_version}}/scripts/install/install-boot.sh -n {{datadir}} /home/dataiku/{{datadir}} dataiku"
+      args:
+        creates: "/etc/init.d/dataiku.{{datadir}}"
+      tags: [dss]
+
+    - name: Start the studios
+      become: true
+      service:
+        name: "dataiku.{{datadir}}"
+        state: started
+        enabled: true
+      tags: [dss]
+
+    - name: Retrieve API Credentials
+      become: true
+      become_user: "{{dss_service_user}}"
+      dss_get_credentials:
+        datadir: "/home/dataiku/{{datadir}}"
+        api_key_name: ansible
+      register: dss_connection_info
+      tags: [dss]
+
+    - name: Remove default users
+      become: true
+      become_user: "{{dss_service_user}}"
+      dss_user:
+        connect_to: "{{dss_connection_info}}"
+        login: "{{item}}"
+        state: absent
+      loop:
+        - admin
+        - viewer
+      when: type != "api"
+      tags: [dss]
+
+    - name: Add alternative admin
+      become: true
+      become_user: "{{dss_service_user}}"
+      dss_user:
+        connect_to: "{{dss_connection_info}}"
+        login: "{{dss_admin_user}}"
+        password: "{{dss_admin_password}}"
+        display_name: "{{dss_admin_user}}"
+        groups: [ "administrators" ]
+        profile: "DATA_SCIENTIST"
+      when: type != "api"
+      tags: [dss]
+
+- name: Install the API Deployer infratructure on the automation node
+  hosts: automation
+  vars:
+    <<: *common_vars
+  tasks:
+    - name: Create Dev infrastructure
+      become: true
+      become_user: "{{dss_service_user}}"
+      dss_api_deployer_infra:
+        connect_to: "{{dss_connection_info}}"
+        id: infra_dev
+        type: STATIC
+        stage: Development
+        api_nodes:
+          - url: "http://{{hostvars.api_dev.dss_node_hostname}}:{{hostvars.api_dev.port}}/"
+            admin_api_key: "{{hostvars.api_dev.dss_connection_info.api_key}}"
+        permissions:
+          - group: "data_team"
+            read: true
+            deploy: true
+            admin: false
+      tags: [dss]
+
+    - name: Create Prod infrastructure
+      become: true
+      become_user: "{{dss_service_user}}"
+      dss_api_deployer_infra:
+        connect_to: "{{dss_connection_info}}"
+        id: infra_prod
+        type: STATIC
+        stage: Production
+        api_nodes:
+          - url: "http://{{hostvars.api_prod.dss_node_hostname}}:{{hostvars.api_prod.port}}/"
+            admin_api_key: "{{hostvars.api_prod.dss_connection_info.api_key}}"
+        permissions:
+          - group: "data_team"
+            read: true
+            deploy: true
+            admin: false
+      tags: [dss]
+
+- name: Setup Automation node as the Model API Deployer of the Design node
+  hosts: design
+  vars:
+    <<: *common_vars
+  tasks:
+    - name: Setup general settings
+      become: true
+      become_user: "{{dss_service_user}}"
+      dss_general_settings:
+        connect_to: "{{dss_connection_info}}"
+        settings:
+          apiDeployerClientSettings:
+            mode: REMOTE
+            nodeUrl: "http://{{hostvars.automation.dss_node_hostname}}:{{hostvars.automation.port}}/"
+            apiKey: "{{hostvars.automation.dss_connection_info.api_key}}"
+      tags: [dss]
