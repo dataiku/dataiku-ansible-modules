@@ -70,7 +70,7 @@ options:
         required: false
     source_type:
         description:
-            - The source type of the user, either LOCAL or LDAP
+            - The source type of the user, either LOCAL, LDAP or LOCAL_NO_AUTH
         required: false
     state:
         description:
@@ -207,8 +207,8 @@ def run_module():
             raise
 
         # Manage errors
-        if args.source_type not in ["LOCAL","LDAP"]:
-            module.fail_json(msg="Invalid value '{}' for source_type : must be either 'LOCAL' or 'LDAP'".format(args.source_type))
+        if args.source_type not in ["LOCAL","LDAP","LOCAL_NO_AUTH"]:
+            module.fail_json(msg="Invalid value '{}' for source_type : must be either 'LOCAL', 'LDAP' or 'LOCAL_NO_AUTH'".format(args.source_type))
         if args.password is None and create_user:
             module.fail_json(msg="The 'password' parameter is missing but is mandatory to create new user '{}'.".format(args.login))
         if args.display_name is None and create_user:
