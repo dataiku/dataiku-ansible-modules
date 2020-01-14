@@ -211,8 +211,8 @@ def run_module():
         # Manage errors
         if args.source_type not in ["LOCAL","LDAP","LOCAL_NO_AUTH"]:
             module.fail_json(msg="Invalid value '{}' for source_type : must be either 'LOCAL', 'LDAP' or 'LOCAL_NO_AUTH'".format(args.source_type))
-        if args.password is None and create_user:
-            module.fail_json(msg="The 'password' parameter is missing but is mandatory to create new user '{}'.".format(args.login))
+        if args.password is None and create_user and args.source_type not in ['LDAP','LOCAL_NO_AUTH']:
+            module.fail_json(msg="The 'password' parameter is missing but is mandatory to create new local user '{}'.".format(args.login))
         if args.display_name is None and create_user:
             #module.fail_json(msg="The 'display_name' parameter is missing but is mandatory to create new user '{}'.".format(args.login))
             # TODO: shall we fail here or use a default to login ?
@@ -224,7 +224,7 @@ def run_module():
         # TODO: be careful that the key names changes between creation and edition
         new_user_def = copy.deepcopy(current_user) if user_exists else {} # Used for modification
         result["previous_user_def"] = copy.deepcopy(new_user_def)
-        for key, api_param in [("email","email"),("display_name","displayName"),("profile","userProfile"),("groups","groups")]:
+        for key, api_param in [("email","email"),("display_name","displayName"),("profile","userProfile"),("groups","groups"),("source_type","sourceType")]:
             if module.params.get(key,None) is not None:
                 value = module.params[key]
                 if isinstance(value,six.string_types):
