@@ -1,5 +1,7 @@
 #!/usr/bin/env python2
 
+from __future__ import absolute_import
+import six
 ANSIBLE_METADATA = {
     'metadata_version': '1.1',
     'status': ['preview'],
@@ -98,6 +100,7 @@ from ansible.module_utils.basic import AnsibleModule
 from dataikuapi import DSSClient
 from dataikuapi.dss.admin import DSSConnection
 from dataikuapi.utils import DataikuException
+import collections
 import copy
 import traceback
 import re
@@ -110,7 +113,7 @@ class MakeNamespace(object):
 
 # Similar to dict.update but deep
 def update(d, u):
-    for k, v in u.iteritems():
+    for k, v in six.iteritems(u):
         if isinstance(v, collections.Mapping):
             d[k] = update(d.get(k, {}), v)
         else:

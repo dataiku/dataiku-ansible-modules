@@ -1,5 +1,6 @@
 #!/usr/bin/env python2
 
+from __future__ import absolute_import
 ANSIBLE_METADATA = {
     'metadata_version': '1.1',
     'status': ['preview'],
@@ -233,7 +234,7 @@ def run_module():
         try:
             current = group.get_definition()
         except DataikuException as e:
-            if e.message.startswith("com.dataiku.dip.server.controllers.NotFoundException"):
+            if str(e).startswith("com.dataiku.dip.server.controllers.NotFoundException"):
                 exists = False
                 if args.state == "present":
                     create = True
@@ -282,7 +283,7 @@ def run_module():
             if create:
                 new_group = client.create_group(args.name, description = new_def.get("description",None), source_type=new_def.get("source_type","LOCAL"))
                 # 2nd request mandatory for capabilites TODO: fix the API
-                if "mayWriteSafeCode" not in new_def.keys():
+                if "mayWriteSafeCode" not in list(new_def.keys()):
                     new_def["mayWriteSafeCode"] = True
                 new_group.set_definition(new_def)
                 result["group_def"] = new_group.get_definition()
