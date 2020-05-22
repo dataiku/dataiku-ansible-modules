@@ -125,12 +125,23 @@ EXAMPLES = '''
     datadir: /home/dataiku/dss
     api_key_name: myadminkey
   register: dss_connection_info
+
 - name: Add a group
-  become: true
-  become_user: dataiku
   dss_group:
     connect_to: "{{dss_connection_info}}"
     name: dssgroup
+    admin: false
+    ldap_group_names: ""
+    may_create_authenticated_connections: false
+    may_create_code_envs: true
+    may_create_projects: true
+    may_develop_plugins: true
+    may_edit_lib_folders: true
+    may_manage_code_envs: true
+    may_manage_u_d_m: true
+    may_view_indexed_hive_connections: false
+    may_write_safe_code: true
+    may_write_unsafe_code: true
 
 # Creates a group using explicit host/port/key
 # From local machine
@@ -165,27 +176,21 @@ message:
 '''
 
 from ansible.module_utils.basic import AnsibleModule
-from dataikuapi import DSSClient
-from dataikuapi.dss.admin import DSSGroup
-from dataikuapi.utils import DataikuException
+import ansible.module_utils.dataiku_api_preload_imports
+from ansible.module_utils.dataikuapi.dssclient import DSSClient
+from ansible.module_utils.dataikuapi.dss.admin import DSSGroup
+from ansible.module_utils.dataikuapi.utils import DataikuException
+from ansible.module_utils.dataiku_utils import MakeNamespace, add_dss_connection_args, get_client_from_parsed_args
 import copy
 import traceback
 import re
 import time
 
-# Trick to expose dictionary as python args
-class MakeNamespace(object):
-    def __init__(self,values):
-        self.__dict__.update(values)
 
 def run_module():
     # define the available arguments/parameters that a user can pass to
     # the module
     module_args = dict(
-        connect_to=dict(type='dict', required=False, default={}, no_log=True),
-        host=dict(type='str', required=False, default="127.0.0.1"),
-        port=dict(type='str', required=False, default=None),
-        api_key=dict(type='str', required=False, default=None),
         name=dict(type='str', required=True),
         description=dict(type='str', required=False, default=None),
         source_type=dict(type='str', required=False, default=None),
@@ -203,6 +208,7 @@ def run_module():
         may_write_safe_code=dict(type='bool', required=False, default=True),
         may_write_unsafe_code=dict(type='bool', required=False, default=None),
     )
+    add_dss_connection_args(module_args)
 
     module = AnsibleModule(
         argument_spec=module_args,
@@ -214,20 +220,15 @@ def run_module():
         module.fail_json(msg="Invalid value '{}' for argument state : must be either 'present' or 'absent'".format(args.source_type))
     if args.source_type not in [None,"LOCAL","LDAP","SAAS"]:
         module.fail_json(msg="Invalid value '{}' for source_type : must be either 'LOCAL', 'LDAP' or 'SAAS'".format(args.state))
-    api_key = args.api_key if args.api_key is not None else args.connect_to.get("api_key",None)
-    if api_key is None:
-        module.fail_json(msg="Missing an API Key, either from 'api_key' or 'connect_to' parameters".format(args.state))
-    port = args.port if args.port is not None else args.connect_to.get("port","80")
-    host = args.host
 
     result = dict(
         changed=False,
         message='UNCHANGED',
     )
 
-    client = DSSClient("http://{}:{}".format(args.host, port),api_key=api_key)
-    group = DSSGroup(client, args.name)
     try:
+        client = get_client_from_parsed_args(module)
+        group = DSSGroup(client, args.name)
         exists = True
         create = False
         current = None
@@ -295,7 +296,7 @@ def run_module():
 
         module.exit_json(**result)
     except Exception as e:
-        module.fail_json(msg="{}: {}".format(type(e).__name__,str(e)))
+        module.fail_json(msg="{}\n\n{}\n\n{}".format(str(e),traceback.format_exc(),"".join(traceback.format_stack())))
 
 def main():
     run_module()

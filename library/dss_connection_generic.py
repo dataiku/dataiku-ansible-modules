@@ -1,7 +1,6 @@
-#!/usr/bin/env python2gt
+#!/usr/bin/env python
 
 from __future__ import absolute_import
-import six
 ANSIBLE_METADATA = {
     'metadata_version': '1.1',
     'status': ['preview'],
@@ -62,6 +61,32 @@ EXAMPLES = '''
     datadir: /home/dataiku/dss
     api_key_name: myadminkey
   register: dss_connection_info
+
+
+- name: Create HDFS connection
+  dss_connection_generic:
+    name: "hdfs_test"
+    type: HDFS
+    connection_args:
+      params:
+        root: "/user/dataiku/test"
+        defaultDatabase: dataiku
+        aclSynchronizationMode: "NONE"
+        namingRule:
+          hdfsPathDatasetNamePrefix: "${projectKey}/"
+          tableNameDatasetNamePrefix: "design_${projectKey}_"
+          uploadsPathPrefix: uploads
+      allowWrite: true
+      allowManagedDatasets: true
+      allowManagedFolders: true
+      usableBy: ALLOWED
+      allowedGroups:
+        - data_team
+      detailsReadability:
+        allowedGroups:
+            - data_team
+        readableBy: ALLOWED
+
 '''
 
 RETURN = '''
@@ -77,28 +102,14 @@ message:
 '''
 
 from ansible.module_utils.basic import AnsibleModule
-from dataikuapi import DSSClient
-from dataikuapi.dss.admin import DSSConnection
-from dataikuapi.utils import DataikuException
+import ansible.module_utils.dataiku_api_preload_imports
+from ansible.module_utils.dataikuapi.utils import DataikuException
+from ansible.module_utils.dataiku_utils import MakeNamespace, add_dss_connection_args, get_client_from_parsed_args, update
 import copy
 import traceback
 import re
 import time
 import collections
-
-# Trick to expose dictionary as python args
-class MakeNamespace(object):
-    def __init__(self,values):
-        self.__dict__.update(values)
-
-# Similar to dict.update but deep
-def update(d, u):
-    for k, v in six.iteritems(u):
-        if isinstance(v, collections.Mapping):
-            d[k] = update(d.get(k, {}), v)
-        else:
-            d[k] = v
-    return d
 
 
 connection_template = {
@@ -133,16 +144,13 @@ def run_module():
     # define the available arguments/parameters that a user can pass to
     # the module
     module_args = dict(
-        connect_to=dict(type='dict', required=False, default={}, no_log=True),
-        host=dict(type='str', required=False, default="127.0.0.1"),
-        port=dict(type='str', required=False, default=None),
-        api_key=dict(type='str', required=False, default=None),
         name=dict(type='str', required=True),
         state=dict(type='str', required=False, default="present"),
         type=dict(type='str', required=True),
         connection_args=dict(type='dict', default={}, required=False),
         #params=dict(type='dict', default={}, required=False),
     )
+    add_dss_connection_args(module_args)
 
     module = AnsibleModule(
         argument_spec=module_args,
@@ -152,11 +160,6 @@ def run_module():
     args = MakeNamespace(module.params)
     if args.state not in ["present","absent"]:
         module.fail_json(msg="Invalid value '{}' for argument state : must be either 'present' or 'absent'".format(args.source_type))
-    api_key = args.api_key if args.api_key is not None else args.connect_to.get("api_key",None)
-    if api_key is None:
-        module.fail_json(msg="Missing an API Key, either from 'api_key' or 'connect_to' parameters".format(args.state))
-    port = args.port if args.port is not None else args.connect_to.get("port","80")
-    host = args.host
     type = args.type
 
     result = dict(
@@ -165,7 +168,7 @@ def run_module():
     )
 
     try:
-        client = DSSClient("http://{}:{}".format(args.host, port),api_key=api_key)
+        client = get_client_from_parsed_args(module)
         exists = True
         create = False
         connection = client.get_connection(args.name)
@@ -271,7 +274,7 @@ def run_module():
 
         module.exit_json(**result)
     except Exception as e:
-        module.fail_json(msg="{}: {}".format(pytypefunc(e).__name__,str(e)))
+        module.fail_json(msg="{}\n\n{}\n\n{}".format(str(e),traceback.format_exc(),"".join(traceback.format_stack())))
 
 def main():
     run_module()

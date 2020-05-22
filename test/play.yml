@@ -1,0 +1,107 @@
+---
+- hosts: localhost
+  connection: local
+  vars:
+    ansible_python_interpreter: "{{ansible_playbook_python}}"
+  environment:
+    DATAIKU_ANSIBLE_DSS_HOST: 127.0.0.1
+    DATAIKU_ANSIBLE_DSS_PORT: "{{dss_port}}"
+    DATAIKU_ANSIBLE_DSS_API_KEY: "{{dss_api_key}}"
+  roles:
+    - dataiku-api-client-python
+    - dataiku-ansible-modules
+  tasks:
+  #- name: Get the API Key
+    #dss_get_credentials:
+      #datadir: "{{dss_datadir}}"
+      #api_key_name: myadminkey
+    #register: dss_connection_info
+
+  - name: Add a user  
+    dss_user:
+      #connect_to: "{{dss_connection_info}}"
+      login: user1
+      display_name: Robert
+      password: Robert
+      groups:
+        - readers
+      profile: DATA_SCIENTIST
+
+  - name: Remove admin
+    dss_user:
+      login: admin
+      state: absent
+
+  - name: Create a group
+    dss_group:
+      name: dssgroup
+      admin: false
+      ldap_group_names: ""
+      may_create_authenticated_connections: false
+      may_create_code_envs: true
+      may_create_projects: true
+      may_develop_plugins: true
+      may_edit_lib_folders: true
+      may_manage_code_envs: true
+      may_manage_u_d_m: true
+      may_view_indexed_hive_connections: false
+      may_write_safe_code: true
+      may_write_unsafe_code: true
+
+  - name: Delete a group
+    dss_group:
+      name: readers
+      state: absent
+
+  - name: Create HDFS connection
+    dss_connection_generic:
+      name: "hdfs_test"
+      type: HDFS
+      connection_args:
+        params:
+          root: "/user/dataiku/test"
+          defaultDatabase: dataiku
+          aclSynchronizationMode: "NONE"
+          namingRule:
+            hdfsPathDatasetNamePrefix: "${projectKey}/"
+            tableNameDatasetNamePrefix: "design_${projectKey}_"
+            uploadsPathPrefix: uploads
+        allowWrite: true
+        allowManagedDatasets: true
+        allowManagedFolders: true
+        usableBy: ALLOWED
+        allowedGroups:
+          - data_team
+        detailsReadability:
+          allowedGroups:
+              - data_team
+          readableBy: ALLOWED
+
+  - name: Delete a connection
+    dss_connection_generic:
+      name: filesystem_managed
+      type: Filesystem
+      state: absent
+
+  - name: Set local api deployer
+    dss_general_settings:
+      settings:
+        apiDeployerClientSettings:
+          mode: LOCAL
+          nodeUrl: ""
+          apiKey: ""
+
+  - name: Set an infra
+    dss_api_deployer_infra:
+      id: infra_dev
+      type: STATIC
+      stage: Development
+      api_nodes:
+        - url: "http://localhost:12345/"
+          admin_api_key: "blablabla"
+          graphite_prefix: apinode
+      permissions:
+        - group: "data_team"
+          read: true
+          deploy: true
+          admin: false

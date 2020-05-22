@@ -74,6 +74,7 @@ options:
         description:
             - The source type of the user, either LOCAL, LDAP or LOCAL_NO_AUTH
         required: false
+        default: LOCAL
     state:
         description:
             - Wether the user is supposed to exist or not. Possible values are "present" and "absent"
@@ -141,25 +142,18 @@ message:
 '''
 
 from ansible.module_utils.basic import AnsibleModule
-from dataikuapi import DSSClient
-from dataikuapi.dss.admin import DSSUser
-from dataikuapi.utils import DataikuException
+import ansible.module_utils.dataiku_api_preload_imports
+from ansible.module_utils.dataikuapi.dss.admin import DSSUser
+from ansible.module_utils.dataikuapi.utils import DataikuException
+from ansible.module_utils.dataiku_utils import MakeNamespace, add_dss_connection_args, get_client_from_parsed_args
 import copy
 import traceback
-
-# Trick to expose dictionary as python args
-class MakeNamespace(object):
-    def __init__(self,values):
-        self.__dict__.update(values)
+from requests.exceptions import HTTPError
 
 def run_module():
     # define the available arguments/parameters that a user can pass to
     # the module
     module_args = dict(
-        connect_to=dict(type='dict', required=False, default={}, no_log=True),
-        host=dict(type='str', required=False, default="127.0.0.1"),
-        port=dict(type='str', required=False, default=None),
-        api_key=dict(type='str', required=False, default=None),
         login=dict(type='str', required=True),
         password=dict(type='str', required=False, default=None, no_log=True),
         set_password_at_creation_only=dict(type='bool', required=False, default=True),
@@ -170,6 +164,7 @@ def run_module():
         source_type=dict(type='str', required=False, default="LOCAL"),
         state=dict(type='str', required=False, default="present"),
         )
+    add_dss_connection_args(module_args)
 
     module = AnsibleModule(
         argument_spec=module_args,
@@ -179,27 +174,22 @@ def run_module():
     args = MakeNamespace(module.params)
     if args.state not in ["present","absent"]:
         module.fail_json(msg="Invalid value '{}' for argument state : must be either 'present' or 'absent'".format(args.state))
-    api_key = args.api_key if args.api_key is not None else args.connect_to.get("api_key",None)
-    if api_key is None:
-        module.fail_json(msg="Missing an API Key, either from 'api_key' or 'connect_to' parameters".format(args.state))
-    port = args.port if args.port is not None else args.connect_to.get("port","80")
-    host = args.host
 
     result = dict(
         changed=False,
         message='UNCHANGED',
     )
 
-    client = DSSClient("http://{}:{}".format(args.host, port),api_key=api_key)
-    user = DSSUser(client, args.login)
     try:
+        client = get_client_from_parsed_args(module)
+        user = DSSUser(client, args.login)
         user_exists = True
         create_user = False
         current_user = None
         try:
             current_user = user.get_definition()
         except DataikuException as e:
-            if e.message.startswith("com.dataiku.dip.server.controllers.NotFoundException"):
+            if str(e).startswith("com.dataiku.dip.server.controllers.NotFoundException"):
                 user_exists = False
                 if args.state == "present":
                     create_user = True
@@ -227,7 +217,7 @@ def run_module():
         for key, api_param in [("email","email"),("display_name","displayName"),("profile","userProfile"),("groups","groups"),("source_type","sourceType")]:
             if module.params.get(key,None) is not None:
                 value = module.params[key]
-                if isinstance(value,six.string_types):
+                if isinstance(value,six.binary_type):
                     value = value.decode("UTF-8")
                 new_user_def[key if create_user else api_param] = value
         if user_exists and args.password is not None and not args.set_password_at_creation_only:
@@ -278,7 +268,7 @@ def run_module():
 
         module.exit_json(**result)
     except Exception as e:
-        module.fail_json(msg=str(e))
+        module.fail_json(msg="{}\n\n{}\n\n{}".format(str(e),traceback.format_exc(),"".join(traceback.format_stack())))
 
 def main():
     run_module()

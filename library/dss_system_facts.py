@@ -83,7 +83,7 @@ def run_module():
         current_uid = os.getuid()
         current_datadir_uid = os.stat(args.datadir).st_uid
         if current_uid != current_datadir_uid:
-            module.fail_json(msg="The dss_get_credentials MUST be ran as the owner of the datadir (ran as UID={}, datadir owned by UID={})".format(current_uid, current_datadir_uid))
+            module.fail_json(msg="dss_system_facts MUST run as the owner of the datadir (ran as UID={}, datadir owned by UID={})".format(current_uid, current_datadir_uid))
 
         # Setup the log
         logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s', filename="{}/run/ansible.log".format(args.datadir),filemode="a")
@@ -111,7 +111,7 @@ def run_module():
 
         module.exit_json(**result)
     except Exception as e:
-        module.fail_json(msg=str(e))
+        module.fail_json(msg="{}\n\n{}\n\n{}".format(str(e),traceback.format_exc(e),"".join(traceback.format_stack())))
 
 def main():
     run_module()

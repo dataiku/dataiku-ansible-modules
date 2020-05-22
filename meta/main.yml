@@ -5,4 +5,5 @@ galaxy_info:
   license: Apache 2.0
   min_ansible_version: 2.5
   galaxy_tags: ["dataiku","dss","data-science-studio"]
-dependencies: []
+dependencies:
+- dataiku-api-client-python

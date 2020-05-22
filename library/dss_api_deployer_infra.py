@@ -1,7 +1,7 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python
 
 from __future__ import absolute_import
-import six
+
 ANSIBLE_METADATA = {
     'metadata_version': '1.1',
     'status': ['preview'],
@@ -89,48 +89,20 @@ message:
 '''
 
 from ansible.module_utils.basic import AnsibleModule
-from dataikuapi import DSSClient
-from dataikuapi.dss.admin import DSSGeneralSettings
-from dataikuapi.dss.apideployer import DSSAPIDeployer, DSSAPIDeployerInfra, DSSAPIDeployerInfraSettings
-from dataikuapi.utils import DataikuException
+import ansible.module_utils.dataiku_api_preload_imports
+from ansible.module_utils.dataikuapi.utils import DataikuException
+from ansible.module_utils.dataiku_utils import MakeNamespace, add_dss_connection_args, get_client_from_parsed_args, update, extract_keys
 import copy
 import traceback
 import re
 import time
 import collections
 
-# Trick to expose dictionary as python args
-class MakeNamespace(object):
-    def __init__(self,values):
-        self.__dict__.update(values)
-
-# Similar to dict.update but deep
-def update(d, u):
-    for k, v in six.iteritems(u):
-        if isinstance(v, collections.Mapping):
-            d[k] = update(d.get(k, {}), v)
-        else:
-            d[k] = v
-    return d
-
-def extract_keys(input_data, keys_reference):
-    extracted_data = {}
-    for k, v in keys_reference.items():
-        if isinstance(v, collections.Mapping):
-            extracted_data[k] = extract_keys(input_data[k],v)
-        else:
-            extracted_data[k] = input_data.get(k,None) 
-    return extracted_data
-
 
 def run_module():
     # define the available arguments/parameters that a user can pass to
     # the module
     module_args = dict(
-        connect_to=dict(type='dict', required=False, default={}, no_log=True),
-        host=dict(type='str', required=False, default="127.0.0.1"),
-        port=dict(type='str', required=False, default=None),
-        api_key=dict(type='str', required=False, default=None),
         state=dict(type='str', required=False, default="present"),
         id=dict(type='str', required=True),
         stage=dict(type='str', required=True),
@@ -139,6 +111,7 @@ def run_module():
         permissions=dict(type='list',required=False,default=[]),
         carbonapi_url=dict(type='str',required=False,default=None),
     )
+    add_dss_connection_args(module_args)
 
     module = AnsibleModule(
         argument_spec=module_args,
@@ -146,12 +119,6 @@ def run_module():
     )
 
     args = MakeNamespace(module.params)
-    api_key = args.api_key if args.api_key is not None else args.connect_to.get("api_key",None)
-    if api_key is None:
-        module.fail_json(msg="Missing an API Key, either from 'api_key' or 'connect_to' parameters".format(args.state))
-    port = args.port if args.port is not None else args.connect_to.get("port","80")
-    host = args.host
-
     result = dict(
         changed=False,
         message='UNCHANGED',
@@ -163,7 +130,7 @@ def run_module():
     create = False
     infra = None
     try:
-        client = DSSClient("http://{}:{}".format(args.host, port),api_key=api_key)
+        client = get_client_from_parsed_args(module)
         api_deployer = client.get_apideployer()
         infras_status = api_deployer.list_infras(as_objects=False)
         infras_id = []
@@ -220,7 +187,7 @@ def run_module():
             
         module.exit_json(**result)
     except Exception as e:
-        module.fail_json(msg="{}: {}".format(type(e).__name__,str(e)))
+        module.fail_json(msg="{}\n\n{}\n\n{}".format(str(e),traceback.format_exc(),"".join(traceback.format_stack())))
 
 def main():
     run_module()
