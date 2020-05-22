@@ -3,10 +3,6 @@ Dataiku DSS modules
 
 This role packages custom modules to administrate Dataiku Data Science Studio platforms.
 
-Requirements
-------------
-
-These modules require the [Dataiku DSS API](https://github.com/dataiku/dataiku-api-client-python) to be installed and available in the Python runtime executing the module. The `ansible_python_interpreter` option might be useful when using a virtualenv.
 
 Installation
 ------------
@@ -16,12 +12,14 @@ Installation
 If the first directory of your roles path is writable, just use:
 
  ```
+ansible-galaxy install git+https://github.com/dataiku/dataiku-api-client-python,release/7.0
 ansible-galaxy install git+https://github.com/dataiku/dataiku-ansible-modules
  ```
 
 Or specify the path in which you want the role to be installed:
 
  ```
+ansible-galaxy install git+https://github.com/dataiku/dataiku-api-client-pythin,release/7.0 --roles-path=/path/to/your/roles
 ansible-galaxy install git+https://github.com/dataiku/dataiku-ansible-modules --roles-path=/path/to/your/roles
  ```
 
@@ -35,6 +33,9 @@ You can use a `yaml` file with a content like this:
 
 ```YAML
 ---
+- src: git+https://github.com/dataiku/dataiku-api-client-python
+  name: dataiku-ansible-modules
+  version: release/7.0
 - src: git+https://github.com/dataiku/dataiku-ansible-modules
   name: dataiku-ansible-modules
   version: master
