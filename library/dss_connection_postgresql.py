@@ -1,13 +1,26 @@
 #!/usr/bin/env python
 
 from __future__ import absolute_import
-ANSIBLE_METADATA = {
-    'metadata_version': '1.1',
-    'status': ['preview'],
-    'supported_by': 'dataiku-ansible-modules'
-}
 
-DOCUMENTATION = '''
+import collections
+import copy
+import re
+import time
+import traceback
+
+import ansible.module_utils.dataiku_api_preload_imports
+from ansible.module_utils.basic import AnsibleModule
+from ansible.module_utils.dataiku_utils import (
+    MakeNamespace,
+    add_dss_connection_args,
+    get_client_from_parsed_args,
+    update,
+)
+from ansible.module_utils.dataikuapi.utils import DataikuException
+
+ANSIBLE_METADATA = {"metadata_version": "1.1", "status": ["preview"], "supported_by": "dataiku-ansible-modules"}
+
+DOCUMENTATION = """
 ---
 module: dss_connection_postgresql
 
@@ -70,9 +83,9 @@ options:
         required: false
 author:
     - Jean-Bernard Jansen (jean-bernard.jansen@dataiku.com)
-'''
+"""
 
-EXAMPLES = '''
+EXAMPLES = """
 # Creates a group using dss_get_credentials if you have SSH Access
 - name: Get the API Key
   become: true
@@ -81,9 +94,9 @@ EXAMPLES = '''
     datadir: /home/dataiku/dss
     api_key_name: myadminkey
   register: dss_connection_info
-'''
+"""
 
-RETURN = '''
+RETURN = """
 previous_connection_def:
     description: The previous values
     type: dict
@@ -93,17 +106,8 @@ connection_def:
 message:
     description: CREATED, MODIFIED, UNCHANGED or DELETED 
     type: str
-'''
+"""
 
-from ansible.module_utils.basic import AnsibleModule
-import ansible.module_utils.dataiku_api_preload_imports
-from ansible.module_utils.dataikuapi.utils import DataikuException
-from ansible.module_utils.dataiku_utils import MakeNamespace, add_dss_connection_args, get_client_from_parsed_args, update
-import collections
-import copy
-import traceback
-import re
-import time
 
 
 connection_template = {
@@ -111,67 +115,57 @@ connection_template = {
     "allowManagedFolders": False,
     "allowWrite": True,
     "allowedGroups": [],
-    #"creationTag": {},
-    "credentialsMode": "GLOBAL", 
-    "detailsReadability": {
-	"allowedGroups": [], 
-	"readableBy": "NONE"
-    },
-    "indexingSettings": {
-	"indexForeignKeys": False,
-	"indexIndices": False,
-	"indexSystemTables": False
-    },
+    # "creationTag": {},
+    "credentialsMode": "GLOBAL",
+    "detailsReadability": {"allowedGroups": [], "readableBy": "NONE"},
+    "indexingSettings": {"indexForeignKeys": False, "indexIndices": False, "indexSystemTables": False},
     "maxActivities": 0,
-    #"name": "",
+    # "name": "",
     "params": {
-	"autocommitMode": False,
-	#"db": "",
-	#"host": "",
-	"namingRule": {
-	    "canOverrideSchemaInManagedDatasetCreation": False,
-	    "tableNameDatasetNamePrefix": "${projectKey}_"
-	}, 
-	#"password": "",
-	"port": 5432,
-	"properties": [],
-	"useTruncate": False,
-	"useURL": False,
-	#"user": ""
-    }, 
+        "autocommitMode": False,
+        # "db": "",
+        # "host": "",
+        "namingRule": {
+            "canOverrideSchemaInManagedDatasetCreation": False,
+            "tableNameDatasetNamePrefix": "${projectKey}_",
+        },
+        # "password": "",
+        "port": 5432,
+        "properties": [],
+        "useTruncate": False,
+        "useURL": False,
+        # "user": ""
+    },
     "type": "PostgreSQL",
-    "usableBy": "ALL", 
-    "useGlobalProxy": False
+    "usableBy": "ALL",
+    "useGlobalProxy": False,
 }
+
 
 def run_module():
     # define the available arguments/parameters that a user can pass to
     # the module
     module_args = dict(
-        name=dict(type='str', required=True),
-        state=dict(type='str', required=False, default="present"),
-        postgresql_host=dict(type='str', default=None, required=False),
-        postgresql_port=dict(type='str', default=None, required=False),
-        user=dict(type='str', default=None, required=False),
-        password=dict(type='str', required=False, no_log=True),
-        database=dict(type='str', default=None, required=False),
-        additional_args=dict(type='dict', default={}, required=False),
+        name=dict(type="str", required=True),
+        state=dict(type="str", required=False, default="present"),
+        postgresql_host=dict(type="str", default=None, required=False),
+        postgresql_port=dict(type="str", default=None, required=False),
+        user=dict(type="str", default=None, required=False),
+        password=dict(type="str", required=False, no_log=True),
+        database=dict(type="str", default=None, required=False),
+        additional_args=dict(type="dict", default={}, required=False),
     )
     add_dss_connection_args(module_args)
 
-    module = AnsibleModule(
-        argument_spec=module_args,
-        supports_check_mode=True
-    )
+    module = AnsibleModule(argument_spec=module_args, supports_check_mode=True)
 
     args = MakeNamespace(module.params)
-    if args.state not in ["present","absent"]:
-        module.fail_json(msg="Invalid value '{}' for argument state : must be either 'present' or 'absent'".format(args.source_type))
+    if args.state not in ["present", "absent"]:
+        module.fail_json(
+            msg="Invalid value '{}' for argument state : must be either 'present' or 'absent'".format(args.source_type)
+        )
 
-    result = dict(
-        changed=False,
-        message='UNCHANGED',
-    )
+    result = dict(changed=False, message="UNCHANGED",)
 
     try:
         client = get_client_from_parsed_args(module)
@@ -180,9 +174,9 @@ def run_module():
         connection = client.get_connection(args.name)
         current_def = None
         try:
-            current_def  = connection.get_definition()
+            current_def = connection.get_definition()
         except DataikuException as e:
-            #if e.message.startswith("com.dataiku.dip.server.controllers.NotFoundException"):
+            # if e.message.startswith("com.dataiku.dip.server.controllers.NotFoundException"):
             if str(e) == "java.lang.IllegalArgumentException: Connection '{}' does not exist".format(args.name):
                 exists = False
                 if args.state == "present":
@@ -198,20 +192,26 @@ def run_module():
             result["previous_group_def"] = current_def = connection.get_definition()
             # Check this is the same type
             if current_def["type"] != connection_template["type"]:
-                module.fail_json(msg="Connection '{}' already exists but is of type '{}'".format(args.name,current_def["type"]))
+                module.fail_json(
+                    msg="Connection '{}' already exists but is of type '{}'".format(args.name, current_def["type"])
+                )
                 return
             # Remove some values from the current def
-            encrypted_password_before_change = current_def["params"].get("password",None)
+            encrypted_password_before_change = current_def["params"].get("password", None)
             if encrypted_password_before_change is not None:
                 del current_def["params"]["password"]
         else:
             if args.state == "present":
                 for mandatory_create_param in ["user", "password", "database", "postgresql_host"]:
                     if module.params[mandatory_create_param] is None:
-                        module.fail_json(msg="Connection '{}' does not exist and cannot be created without the '{}' parameter".format(args.name,mandatory_create_param))
+                        module.fail_json(
+                            msg="Connection '{}' does not exist and cannot be created without the '{}' parameter".format(
+                                args.name, mandatory_create_param
+                            )
+                        )
 
         # Build the new definition
-        new_def = copy.deepcopy(current_def) if exists else connection_template # Used for modification
+        new_def = copy.deepcopy(current_def) if exists else connection_template  # Used for modification
 
         # Apply every attribute except the password for now
         new_def["name"] = args.name
@@ -233,7 +233,7 @@ def run_module():
             if create:
                 result["message"] = "CREATED"
             elif exists:
-                if  args.state == "absent":
+                if args.state == "absent":
                     result["message"] = "DELETED"
                 elif current_def != new_def:
                     result["message"] = "MODIFIED"
@@ -257,7 +257,7 @@ def run_module():
                 if args.postgresql_port is not None:
                     params["port"] = args.postgresql_port
                 connection = client.create_connection(args.name, connection_template["type"], params)
-                connection.set_definition(new_def) # 2nd call to apply additional parameters
+                connection.set_definition(new_def)  # 2nd call to apply additional parameters
             elif exists:
                 if args.state == "absent":
                     connection.delete()
@@ -276,10 +276,12 @@ def run_module():
 
         module.exit_json(**result)
     except Exception as e:
-        module.fail_json(msg="{}\n\n{}\n\n{}".format(str(e),traceback.format_exc(),"".join(traceback.format_stack())))
+        module.fail_json(msg="{}\n\n{}\n\n{}".format(str(e), traceback.format_exc(), "".join(traceback.format_stack())))
+
 
 def main():
     run_module()
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     main()

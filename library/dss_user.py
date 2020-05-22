@@ -1,14 +1,21 @@
 #!/usr/bin/env python2
 
 from __future__ import absolute_import
-import six
-ANSIBLE_METADATA = {
-    'metadata_version': '1.1',
-    'status': ['preview'],
-    'supported_by': 'dataiku-ansible-modules'
-}
 
-DOCUMENTATION = '''
+import copy
+import traceback
+
+import ansible.module_utils.dataiku_api_preload_imports
+import six
+from ansible.module_utils.basic import AnsibleModule
+from ansible.module_utils.dataiku_utils import MakeNamespace, add_dss_connection_args, get_client_from_parsed_args
+from ansible.module_utils.dataikuapi.dss.admin import DSSUser
+from ansible.module_utils.dataikuapi.utils import DataikuException
+from requests.exceptions import HTTPError
+
+ANSIBLE_METADATA = {"metadata_version": "1.1", "status": ["preview"], "supported_by": "dataiku-ansible-modules"}
+
+DOCUMENTATION = """
 ---
 module: dss_user
 
@@ -83,9 +90,9 @@ options:
 
 author:
     - Jean-Bernard Jansen (jean-bernard.jansen@dataiku.com)
-'''
+"""
 
-EXAMPLES = '''
+EXAMPLES = """
 # Creates a user using dss_get_credentials if you have SSH Access
 - name: Get the API Key
   become: true
@@ -127,9 +134,9 @@ EXAMPLES = '''
     connect_to: "{{dss_connection_info}}"
     login: user1
     state: absent
-'''
+"""
 
-RETURN = '''
+RETURN = """
 previous_user_def:
     description: The previous values
     type: dict
@@ -139,46 +146,35 @@ user_def:
 message:
     description: CREATED, MODIFIED, UNCHANGED or DELETED 
     type: str
-'''
+"""
 
-from ansible.module_utils.basic import AnsibleModule
-import ansible.module_utils.dataiku_api_preload_imports
-from ansible.module_utils.dataikuapi.dss.admin import DSSUser
-from ansible.module_utils.dataikuapi.utils import DataikuException
-from ansible.module_utils.dataiku_utils import MakeNamespace, add_dss_connection_args, get_client_from_parsed_args
-import copy
-import traceback
-from requests.exceptions import HTTPError
+
 
 def run_module():
     # define the available arguments/parameters that a user can pass to
     # the module
     module_args = dict(
-        login=dict(type='str', required=True),
-        password=dict(type='str', required=False, default=None, no_log=True),
-        set_password_at_creation_only=dict(type='bool', required=False, default=True),
-        email=dict(type='str', required=False, default=None),
-        display_name=dict(type='str', required=False, default=None),
-        groups=dict(type='list', required=False, default=None),
-        profile=dict(type='str', required=False, default=None),
-        source_type=dict(type='str', required=False, default="LOCAL"),
-        state=dict(type='str', required=False, default="present"),
-        )
+        login=dict(type="str", required=True),
+        password=dict(type="str", required=False, default=None, no_log=True),
+        set_password_at_creation_only=dict(type="bool", required=False, default=True),
+        email=dict(type="str", required=False, default=None),
+        display_name=dict(type="str", required=False, default=None),
+        groups=dict(type="list", required=False, default=None),
+        profile=dict(type="str", required=False, default=None),
+        source_type=dict(type="str", required=False, default="LOCAL"),
+        state=dict(type="str", required=False, default="present"),
+    )
     add_dss_connection_args(module_args)
 
-    module = AnsibleModule(
-        argument_spec=module_args,
-        supports_check_mode=True
-    )
+    module = AnsibleModule(argument_spec=module_args, supports_check_mode=True)
 
     args = MakeNamespace(module.params)
-    if args.state not in ["present","absent"]:
-        module.fail_json(msg="Invalid value '{}' for argument state : must be either 'present' or 'absent'".format(args.state))
+    if args.state not in ["present", "absent"]:
+        module.fail_json(
+            msg="Invalid value '{}' for argument state : must be either 'present' or 'absent'".format(args.state)
+        )
 
-    result = dict(
-        changed=False,
-        message='UNCHANGED',
-    )
+    result = dict(changed=False, message="UNCHANGED",)
 
     try:
         client = get_client_from_parsed_args(module)
@@ -199,12 +195,20 @@ def run_module():
             raise
 
         # Manage errors
-        if args.source_type not in ["LOCAL","LDAP","LOCAL_NO_AUTH"]:
-            module.fail_json(msg="Invalid value '{}' for source_type : must be either 'LOCAL', 'LDAP' or 'LOCAL_NO_AUTH'".format(args.source_type))
-        if args.password is None and create_user and args.source_type not in ['LDAP','LOCAL_NO_AUTH']:
-            module.fail_json(msg="The 'password' parameter is missing but is mandatory to create new local user '{}'.".format(args.login))
+        if args.source_type not in ["LOCAL", "LDAP", "LOCAL_NO_AUTH"]:
+            module.fail_json(
+                msg="Invalid value '{}' for source_type : must be either 'LOCAL', 'LDAP' or 'LOCAL_NO_AUTH'".format(
+                    args.source_type
+                )
+            )
+        if args.password is None and create_user and args.source_type not in ["LDAP", "LOCAL_NO_AUTH"]:
+            module.fail_json(
+                msg="The 'password' parameter is missing but is mandatory to create new local user '{}'.".format(
+                    args.login
+                )
+            )
         if args.display_name is None and create_user:
-            #module.fail_json(msg="The 'display_name' parameter is missing but is mandatory to create new user '{}'.".format(args.login))
+            # module.fail_json(msg="The 'display_name' parameter is missing but is mandatory to create new user '{}'.".format(args.login))
             # TODO: shall we fail here or use a default to login ?
             args.display_name = module.params["display_name"] = args.login
         if args.groups is None and create_user:
@@ -212,29 +216,37 @@ def run_module():
 
         # Build the new user definition
         # TODO: be careful that the key names changes between creation and edition
-        new_user_def = copy.deepcopy(current_user) if user_exists else {} # Used for modification
+        new_user_def = copy.deepcopy(current_user) if user_exists else {}  # Used for modification
         result["previous_user_def"] = copy.deepcopy(new_user_def)
-        for key, api_param in [("email","email"),("display_name","displayName"),("profile","userProfile"),("groups","groups"),("source_type","sourceType")]:
-            if module.params.get(key,None) is not None:
+        for key, api_param in [
+            ("email", "email"),
+            ("display_name", "displayName"),
+            ("profile", "userProfile"),
+            ("groups", "groups"),
+            ("source_type", "sourceType"),
+        ]:
+            if module.params.get(key, None) is not None:
                 value = module.params[key]
-                if isinstance(value,six.binary_type):
+                if isinstance(value, six.binary_type):
                     value = value.decode("UTF-8")
                 new_user_def[key if create_user else api_param] = value
         if user_exists and args.password is not None and not args.set_password_at_creation_only:
             new_user_def["password"] = args.password
 
         # Sort groups list before comparison as they should be considered sets
-        new_user_def.get("groups",[]).sort()
+        new_user_def.get("groups", []).sort()
         if user_exists:
-            current_user.get("groups",[]).sort()
+            current_user.get("groups", []).sort()
 
         # Prepare the result for dry-run mode
-        result["changed"] = create_user or (user_exists and args.state == "absent") or (user_exists and current_user != new_user_def)
+        result["changed"] = (
+            create_user or (user_exists and args.state == "absent") or (user_exists and current_user != new_user_def)
+        )
         if result["changed"]:
             if create_user:
                 result["message"] = "CREATED"
             elif user_exists:
-                if  args.state == "absent":
+                if args.state == "absent":
                     result["message"] = "DELETED"
                 elif current_user != new_user_def:
                     result["message"] = "MODIFIED"
@@ -252,11 +264,11 @@ def run_module():
                 create_excluded_keys = ["email"]
                 create_excluded_values = {}
                 for create_excluded_key in create_excluded_keys:
-                    if new_user_def.get(create_excluded_key,None) is not None:
+                    if new_user_def.get(create_excluded_key, None) is not None:
                         create_excluded_values[create_excluded_key] = new_user_def[create_excluded_key]
                         del new_user_def[create_excluded_key]
                 new_user = client.create_user(args.login, args.password, **new_user_def)
-                if module.params.get("email",None) is not None:
+                if module.params.get("email", None) is not None:
                     new_user_def_mod = new_user.get_definition()
                     new_user_def_mod.update(create_excluded_values)
                     new_user.set_definition(new_user_def_mod)
@@ -268,10 +280,12 @@ def run_module():
 
         module.exit_json(**result)
     except Exception as e:
-        module.fail_json(msg="{}\n\n{}\n\n{}".format(str(e),traceback.format_exc(),"".join(traceback.format_stack())))
+        module.fail_json(msg="{}\n\n{}\n\n{}".format(str(e), traceback.format_exc(), "".join(traceback.format_stack())))
+
 
 def main():
     run_module()
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     main()

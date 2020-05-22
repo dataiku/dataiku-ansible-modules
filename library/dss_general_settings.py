@@ -1,13 +1,27 @@
 #!/usr/bin/env python
 
 from __future__ import absolute_import
-ANSIBLE_METADATA = {
-    'metadata_version': '1.1',
-    'status': ['preview'],
-    'supported_by': 'dataiku-ansible-modules'
-}
 
-DOCUMENTATION = '''
+import collections
+import copy
+import re
+import time
+import traceback
+
+import ansible.module_utils.dataiku_api_preload_imports
+from ansible.module_utils.basic import AnsibleModule
+from ansible.module_utils.dataiku_utils import (
+    MakeNamespace,
+    add_dss_connection_args,
+    extract_keys,
+    get_client_from_parsed_args,
+    update,
+)
+from ansible.module_utils.dataikuapi.utils import DataikuException
+
+ANSIBLE_METADATA = {"metadata_version": "1.1", "status": ["preview"], "supported_by": "dataiku-ansible-modules"}
+
+DOCUMENTATION = """
 ---
 module: dss_general_settings
 
@@ -41,9 +55,9 @@ options:
         required: false
 author:
     - Jean-Bernard Jansen (jean-bernard.jansen@dataiku.com)
-'''
+"""
 
-EXAMPLES = '''
+EXAMPLES = """
 - name: Get credentials
   become: true
   become_user: dataiku
@@ -74,9 +88,9 @@ EXAMPLES = '''
         groupNameAttribute: cn
         groupProfiles: []
         authorizedGroups: dss-users
-'''
+"""
 
-RETURN = '''
+RETURN = """
 previous_settings:
     description: Previous values held by required settings before update
     type: dict
@@ -86,40 +100,22 @@ dss_general_settings:
 message:
     description: MODIFIED or UNCHANGED
     type: str
-'''
+"""
 
-from ansible.module_utils.basic import AnsibleModule
-import ansible.module_utils.dataiku_api_preload_imports
-from ansible.module_utils.dataikuapi.utils import DataikuException
-from ansible.module_utils.dataiku_utils import MakeNamespace, add_dss_connection_args, get_client_from_parsed_args, update, extract_keys
 
-import copy
-import traceback
-import re
-import time
-import collections
+
 
 def run_module():
     # define the available arguments/parameters that a user can pass to
     # the module
-    module_args = dict(
-        settings=dict(type='dict', required=False, default={}),
-    )
+    module_args = dict(settings=dict(type="dict", required=False, default={}),)
     add_dss_connection_args(module_args)
 
-    module = AnsibleModule(
-        argument_spec=module_args,
-        supports_check_mode=True
-    )
+    module = AnsibleModule(argument_spec=module_args, supports_check_mode=True)
 
     args = MakeNamespace(module.params)
 
-    result = dict(
-        changed=False,
-        message='UNCHANGED',
-        previous_settings=None,
-        settings=None
-    )
+    result = dict(changed=False, message="UNCHANGED", previous_settings=None, settings=None)
 
     client = None
     general_settings = None
@@ -131,7 +127,7 @@ def run_module():
         # Prepare the result for dry-run mode
         result["previous_settings"] = current_values
         result["dss_general_settings"] = general_settings.settings
-        result["changed"] = (current_values != args.settings)
+        result["changed"] = current_values != args.settings
         if result["changed"]:
             result["message"] = "MODIFIED"
 
@@ -143,10 +139,12 @@ def run_module():
         general_settings.save()
         module.exit_json(**result)
     except Exception as e:
-        module.fail_json(msg="{}\n\n{}\n\n{}".format(str(e),traceback.format_exc(),"".join(traceback.format_stack())))
+        module.fail_json(msg="{}\n\n{}\n\n{}".format(str(e), traceback.format_exc(), "".join(traceback.format_stack())))
+
 
 def main():
     run_module()
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     main()

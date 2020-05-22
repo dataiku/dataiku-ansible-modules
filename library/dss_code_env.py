@@ -1,13 +1,27 @@
 #!/usr/bin/env python
 
 from __future__ import absolute_import
-ANSIBLE_METADATA = {
-    'metadata_version': '1.1',
-    'status': ['preview'],
-    'supported_by': 'dataiku-ansible-modules'
-}
 
-DOCUMENTATION = '''
+import collections
+import copy
+import re
+import time
+import traceback
+
+import ansible.module_utils.dataiku_api_preload_imports
+from ansible.module_utils.basic import AnsibleModule
+from ansible.module_utils.dataiku_utils import (
+    MakeNamespace,
+    add_dss_connection_args,
+    extract_keys,
+    get_client_from_parsed_args,
+    update,
+)
+from ansible.module_utils.dataikuapi.utils import DataikuException
+
+ANSIBLE_METADATA = {"metadata_version": "1.1", "status": ["preview"], "supported_by": "dataiku-ansible-modules"}
+
+DOCUMENTATION = """
 ---
 module: dss_code_env
 
@@ -64,59 +78,46 @@ options:
         required: false
 author:
     - Jean-Bernard Jansen (jean-bernard.jansen@dataiku.com)
-'''
+"""
 
-EXAMPLES = '''
-'''
+EXAMPLES = """
+"""
 
-RETURN = '''
+RETURN = """
 dss_code_env:
     description: Return current status of the infra
     type: dict
 message:
     description: CREATED, DELETED, MODIFIED or UNCHANGED
     type: str
-'''
+"""
 
-from ansible.module_utils.basic import AnsibleModule
-import ansible.module_utils.dataiku_api_preload_imports
-from ansible.module_utils.dataikuapi.utils import DataikuException
-from ansible.module_utils.dataiku_utils import MakeNamespace, add_dss_connection_args, get_client_from_parsed_args, update, extract_keys
-import copy
-import traceback
-import re
-import time
-import collections
 
 
 def run_module():
     # define the available arguments/parameters that a user can pass to
     # the module
     module_args = dict(
-        state=dict(type='str', required=False, default="present"),
-        name=dict(type='str', required=True),
-        lang=dict(type='str', required=True),
-        deployment_mode=dict(type='str', required=False, default=None),
-        jupyter_support=dict(type='bool', required=False, default=None),
-        update=dict(type='bool', required=False, default=True),
-        desc=dict(type='dict', required=False, default=None),
+        state=dict(type="str", required=False, default="present"),
+        name=dict(type="str", required=True),
+        lang=dict(type="str", required=True),
+        deployment_mode=dict(type="str", required=False, default=None),
+        jupyter_support=dict(type="bool", required=False, default=None),
+        update=dict(type="bool", required=False, default=True),
+        desc=dict(type="dict", required=False, default=None),
     )
     add_dss_connection_args(module_args)
 
-    module = AnsibleModule(
-        argument_spec=module_args,
-        supports_check_mode=True
-    )
+    module = AnsibleModule(argument_spec=module_args, supports_check_mode=True)
 
     args = MakeNamespace(module.params)
 
-    if args.lang not in ["PYTHON","R"]:
-        module.fail_json(msg="The lang attribute has invalid value '{}'. Must be either 'PYTHON' or 'R'.".format(args.lang))
+    if args.lang not in ["PYTHON", "R"]:
+        module.fail_json(
+            msg="The lang attribute has invalid value '{}'. Must be either 'PYTHON' or 'R'.".format(args.lang)
+        )
 
-    result = dict(
-        changed=False,
-        message='UNCHANGED',
-    )
+    result = dict(changed=False, message="UNCHANGED",)
 
     client = None
     exists = False
@@ -130,9 +131,9 @@ def run_module():
         # Check existence
         for env in code_envs:
             if env["envName"] == args.name and env["envLang"] == args.lang:
-                exists=True
+                exists = True
                 break
-        
+
         if not exists and args.state == "present":
             create = True
 
@@ -146,7 +147,7 @@ def run_module():
             if create:
                 result["message"] = "CREATED"
             elif exists:
-                if  args.state == "absent":
+                if args.state == "absent":
                     result["message"] = "DELETED"
                 else:
                     result["message"] = "UNMODIFIED"
@@ -160,7 +161,7 @@ def run_module():
             if create:
                 if args.deployment_mode is None:
                     raise Exception("The argument deployment_mode is mandatory to create a code env")
-                code_env = client.create_code_env(args.lang,args.name,args.deployment_mode,args.desc)
+                code_env = client.create_code_env(args.lang, args.name, args.deployment_mode, args.desc)
                 code_env_def = code_env.get_definition()
 
             if args.desc is not None:
@@ -169,7 +170,7 @@ def run_module():
             if args.jupyter_support is not None:
                 code_env.set_jupyter_support(args.jupyter_support)
 
-            code_env_def = code_env.get_definition() 
+            code_env_def = code_env.get_definition()
             result["dss_code_env"] = code_env_def
 
             if previous_code_env_def != code_env_def:
@@ -182,13 +183,15 @@ def run_module():
             if exists:
                 code_env.delete()
                 result["message"] = "DELETED"
-            
+
         module.exit_json(**result)
     except Exception as e:
-        module.fail_json(msg="{}\n\n{}\n\n{}".format(str(e),traceback.format_exc(),"".join(traceback.format_stack())))
+        module.fail_json(msg="{}\n\n{}\n\n{}".format(str(e), traceback.format_exc(), "".join(traceback.format_stack())))
+
 
 def main():
     run_module()
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     main()

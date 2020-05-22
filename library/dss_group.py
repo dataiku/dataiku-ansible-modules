@@ -1,13 +1,22 @@
 #!/usr/bin/env python2
 
 from __future__ import absolute_import
-ANSIBLE_METADATA = {
-    'metadata_version': '1.1',
-    'status': ['preview'],
-    'supported_by': 'dataiku-ansible-modules'
-}
 
-DOCUMENTATION = '''
+import copy
+import re
+import time
+import traceback
+
+import ansible.module_utils.dataiku_api_preload_imports
+from ansible.module_utils.basic import AnsibleModule
+from ansible.module_utils.dataiku_utils import MakeNamespace, add_dss_connection_args, get_client_from_parsed_args
+from ansible.module_utils.dataikuapi.dss.admin import DSSGroup
+from ansible.module_utils.dataikuapi.dssclient import DSSClient
+from ansible.module_utils.dataikuapi.utils import DataikuException
+
+ANSIBLE_METADATA = {"metadata_version": "1.1", "status": ["preview"], "supported_by": "dataiku-ansible-modules"}
+
+DOCUMENTATION = """
 ---
 module: dss_user
 
@@ -114,9 +123,9 @@ options:
 
 author:
     - Jean-Bernard Jansen (jean-bernard.jansen@dataiku.com)
-'''
+"""
 
-EXAMPLES = '''
+EXAMPLES = """
 # Creates a group using dss_get_credentials if you have SSH Access
 - name: Get the API Key
   become: true
@@ -161,9 +170,9 @@ EXAMPLES = '''
     connect_to: "{{dss_connection_info}}"
     group: dssgroup
     state: absent
-'''
+"""
 
-RETURN = '''
+RETURN = """
 previous_group_def:
     description: The previous values
     type: dict
@@ -173,58 +182,46 @@ group_def:
 message:
     description: CREATED, MODIFIED, UNCHANGED or DELETED 
     type: str
-'''
+"""
 
-from ansible.module_utils.basic import AnsibleModule
-import ansible.module_utils.dataiku_api_preload_imports
-from ansible.module_utils.dataikuapi.dssclient import DSSClient
-from ansible.module_utils.dataikuapi.dss.admin import DSSGroup
-from ansible.module_utils.dataikuapi.utils import DataikuException
-from ansible.module_utils.dataiku_utils import MakeNamespace, add_dss_connection_args, get_client_from_parsed_args
-import copy
-import traceback
-import re
-import time
 
 
 def run_module():
     # define the available arguments/parameters that a user can pass to
     # the module
     module_args = dict(
-        name=dict(type='str', required=True),
-        description=dict(type='str', required=False, default=None),
-        source_type=dict(type='str', required=False, default=None),
-        state=dict(type='str', required=False, default="present"),
-        admin=dict(type='bool', required=False, default=None),
-        ldap_group_names=dict(type='list', required=False, default=None),
-        may_create_authenticated_connections=dict(type='bool', required=False, default=None),
-        may_create_code_envs=dict(type='bool', required=False, default=None),
-        may_create_projects=dict(type='bool', required=False, default=None),
-        may_develop_plugins=dict(type='bool', required=False, default=None),
-        may_edit_lib_folders=dict(type='bool', required=False, default=None),
-        may_manage_code_envs=dict(type='bool', required=False, default=None),
-        may_manage_u_d_m=dict(type='bool', required=False, default=None),
-        may_view_indexed_hive_connections=dict(type='bool', required=False, default=None),
-        may_write_safe_code=dict(type='bool', required=False, default=True),
-        may_write_unsafe_code=dict(type='bool', required=False, default=None),
+        name=dict(type="str", required=True),
+        description=dict(type="str", required=False, default=None),
+        source_type=dict(type="str", required=False, default=None),
+        state=dict(type="str", required=False, default="present"),
+        admin=dict(type="bool", required=False, default=None),
+        ldap_group_names=dict(type="list", required=False, default=None),
+        may_create_authenticated_connections=dict(type="bool", required=False, default=None),
+        may_create_code_envs=dict(type="bool", required=False, default=None),
+        may_create_projects=dict(type="bool", required=False, default=None),
+        may_develop_plugins=dict(type="bool", required=False, default=None),
+        may_edit_lib_folders=dict(type="bool", required=False, default=None),
+        may_manage_code_envs=dict(type="bool", required=False, default=None),
+        may_manage_u_d_m=dict(type="bool", required=False, default=None),
+        may_view_indexed_hive_connections=dict(type="bool", required=False, default=None),
+        may_write_safe_code=dict(type="bool", required=False, default=True),
+        may_write_unsafe_code=dict(type="bool", required=False, default=None),
     )
     add_dss_connection_args(module_args)
 
-    module = AnsibleModule(
-        argument_spec=module_args,
-        supports_check_mode=True
-    )
+    module = AnsibleModule(argument_spec=module_args, supports_check_mode=True)
 
     args = MakeNamespace(module.params)
-    if args.state not in ["present","absent"]:
-        module.fail_json(msg="Invalid value '{}' for argument state : must be either 'present' or 'absent'".format(args.source_type))
-    if args.source_type not in [None,"LOCAL","LDAP","SAAS"]:
-        module.fail_json(msg="Invalid value '{}' for source_type : must be either 'LOCAL', 'LDAP' or 'SAAS'".format(args.state))
+    if args.state not in ["present", "absent"]:
+        module.fail_json(
+            msg="Invalid value '{}' for argument state : must be either 'present' or 'absent'".format(args.source_type)
+        )
+    if args.source_type not in [None, "LOCAL", "LDAP", "SAAS"]:
+        module.fail_json(
+            msg="Invalid value '{}' for source_type : must be either 'LOCAL', 'LDAP' or 'SAAS'".format(args.state)
+        )
 
-    result = dict(
-        changed=False,
-        message='UNCHANGED',
-    )
+    result = dict(changed=False, message="UNCHANGED",)
 
     try:
         client = get_client_from_parsed_args(module)
@@ -244,21 +241,20 @@ def run_module():
         except:
             raise
 
-
         # Sort groups list before comparison as they should be considered sets
         if exists:
-            current["ldapGroupNames"]= ",".join(sorted(current.get("ldapGroupNames","").split(",")))
+            current["ldapGroupNames"] = ",".join(sorted(current.get("ldapGroupNames", "").split(",")))
             result["previous_group_def"] = current
         # Build the new user definition
-        new_def = copy.deepcopy(current) if exists else {} # Used for modification
+        new_def = copy.deepcopy(current) if exists else {}  # Used for modification
 
         # Transform to camel case
         dict_args = {}
         if args.ldap_group_names is not None:
             dict_args["ldapGroupNames"] = ",".join(sorted(args.ldap_group_names))
         for key, value in module.params.items():
-            if key not in ["connect_to","host","port","api_key","state","ldap_group_names"] and value is not None:
-                camelKey = re.sub(r'_[a-z]', lambda x : x.group()[1:].upper(), key)
+            if key not in ["connect_to", "host", "port", "api_key", "state", "ldap_group_names"] and value is not None:
+                camelKey = re.sub(r"_[a-z]", lambda x: x.group()[1:].upper(), key)
                 dict_args[camelKey] = value
         new_def.update(dict_args)
 
@@ -268,7 +264,7 @@ def run_module():
             if create:
                 result["message"] = "CREATED"
             elif exists:
-                if  args.state == "absent":
+                if args.state == "absent":
                     result["message"] = "DELETED"
                 elif current != new_def:
                     result["message"] = "MODIFIED"
@@ -282,7 +278,11 @@ def run_module():
         # Apply the changes
         if result["changed"]:
             if create:
-                new_group = client.create_group(args.name, description = new_def.get("description",None), source_type=new_def.get("source_type","LOCAL"))
+                new_group = client.create_group(
+                    args.name,
+                    description=new_def.get("description", None),
+                    source_type=new_def.get("source_type", "LOCAL"),
+                )
                 # 2nd request mandatory for capabilites TODO: fix the API
                 if "mayWriteSafeCode" not in list(new_def.keys()):
                     new_def["mayWriteSafeCode"] = True
@@ -296,10 +296,12 @@ def run_module():
 
         module.exit_json(**result)
     except Exception as e:
-        module.fail_json(msg="{}\n\n{}\n\n{}".format(str(e),traceback.format_exc(),"".join(traceback.format_stack())))
+        module.fail_json(msg="{}\n\n{}\n\n{}".format(str(e), traceback.format_exc(), "".join(traceback.format_stack())))
+
 
 def main():
     run_module()
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     main()

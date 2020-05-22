@@ -2,13 +2,26 @@
 
 from __future__ import absolute_import
 
-ANSIBLE_METADATA = {
-    'metadata_version': '1.1',
-    'status': ['preview'],
-    'supported_by': 'dataiku-ansible-modules'
-}
+import collections
+import copy
+import re
+import time
+import traceback
 
-DOCUMENTATION = '''
+import ansible.module_utils.dataiku_api_preload_imports
+from ansible.module_utils.basic import AnsibleModule
+from ansible.module_utils.dataiku_utils import (
+    MakeNamespace,
+    add_dss_connection_args,
+    extract_keys,
+    get_client_from_parsed_args,
+    update,
+)
+from ansible.module_utils.dataikuapi.utils import DataikuException
+
+ANSIBLE_METADATA = {"metadata_version": "1.1", "status": ["preview"], "supported_by": "dataiku-ansible-modules"}
+
+DOCUMENTATION = """
 ---
 module: dss_api_deployer_infra
 
@@ -41,9 +54,9 @@ options:
         required: false
 author:
     - Jean-Bernard Jansen (jean-bernard.jansen@dataiku.com)
-'''
+"""
 
-EXAMPLES = '''
+EXAMPLES = """
 - name: Get API credentials
   become: true
   become_user: dataiku
@@ -77,53 +90,37 @@ EXAMPLES = '''
         read: true
         deploy: true
         admin: false
-'''
+"""
 
-RETURN = '''
+RETURN = """
 dss_api_deployer_infra:
     description: Return current status of the infra
     type: dict
 message:
     description: CREATED, DELETED, MODIFIED or UNCHANGED
     type: str
-'''
+"""
 
-from ansible.module_utils.basic import AnsibleModule
-import ansible.module_utils.dataiku_api_preload_imports
-from ansible.module_utils.dataikuapi.utils import DataikuException
-from ansible.module_utils.dataiku_utils import MakeNamespace, add_dss_connection_args, get_client_from_parsed_args, update, extract_keys
-import copy
-import traceback
-import re
-import time
-import collections
 
 
 def run_module():
     # define the available arguments/parameters that a user can pass to
     # the module
     module_args = dict(
-        state=dict(type='str', required=False, default="present"),
-        id=dict(type='str', required=True),
-        stage=dict(type='str', required=True),
-        type=dict(type='str', required=True),
-        api_nodes=dict(type='list', required=True),
-        permissions=dict(type='list',required=False,default=[]),
-        carbonapi_url=dict(type='str',required=False,default=None),
+        state=dict(type="str", required=False, default="present"),
+        id=dict(type="str", required=True),
+        stage=dict(type="str", required=True),
+        type=dict(type="str", required=True),
+        api_nodes=dict(type="list", required=True),
+        permissions=dict(type="list", required=False, default=[]),
+        carbonapi_url=dict(type="str", required=False, default=None),
     )
     add_dss_connection_args(module_args)
 
-    module = AnsibleModule(
-        argument_spec=module_args,
-        supports_check_mode=True
-    )
+    module = AnsibleModule(argument_spec=module_args, supports_check_mode=True)
 
     args = MakeNamespace(module.params)
-    result = dict(
-        changed=False,
-        message='UNCHANGED',
-        id=args.id,
-    )
+    result = dict(changed=False, message="UNCHANGED", id=args.id,)
 
     client = None
     exists = True
@@ -145,7 +142,7 @@ def run_module():
             if create:
                 result["message"] = "CREATED"
             elif exists:
-                if  args.state == "absent":
+                if args.state == "absent":
                     result["message"] = "DELETED"
                 elif current != new_def:
                     result["message"] = "MODIFIED"
@@ -167,30 +164,30 @@ def run_module():
             infra_settings.get_raw()["permissions"] = args.permissions
             infra_settings.get_raw()["apiNodes"] = []
             for api_node in args.api_nodes:
-                infra_settings.add_apinode(api_node["url"], api_node["admin_api_key"], api_node.get("graphite_prefix",""))
+                infra_settings.add_apinode(
+                    api_node["url"], api_node["admin_api_key"], api_node.get("graphite_prefix", "")
+                )
             if args.carbonapi_url is not None:
-                infra_settings.get_raw().update({
-                    "carbonAPISettings":{
-                        "carbonAPIURL": args.carbonapi_url
-                    }
-                })
+                infra_settings.get_raw().update({"carbonAPISettings": {"carbonAPIURL": args.carbonapi_url}})
             infra_settings.save()
             if infra_settings.get_raw() != previous_settings and not result["changed"]:
-                #result["previous"] = previous_settings
-                #result["new"] = infra_settings.get_raw()
+                # result["previous"] = previous_settings
+                # result["new"] = infra_settings.get_raw()
                 result["changed"] = True
                 result["message"] = "MODIFIED"
 
         if args.state == "absent" and exits:
             # TODO implement
             pass
-            
+
         module.exit_json(**result)
     except Exception as e:
-        module.fail_json(msg="{}\n\n{}\n\n{}".format(str(e),traceback.format_exc(),"".join(traceback.format_stack())))
+        module.fail_json(msg="{}\n\n{}\n\n{}".format(str(e), traceback.format_exc(), "".join(traceback.format_stack())))
+
 
 def main():
     run_module()
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     main()

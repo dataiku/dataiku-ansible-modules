@@ -11,12 +11,10 @@ import ansible.module_utils.dataikuapi.apinode_admin_client
 import ansible.module_utils.dataikuapi.apinode_client
 import ansible.module_utils.dataikuapi.base_client
 import ansible.module_utils.dataikuapi.dss.admin
-import ansible.module_utils.dataikuapi.dss.admin
 import ansible.module_utils.dataikuapi.dss.analysis
 import ansible.module_utils.dataikuapi.dss.apideployer
 import ansible.module_utils.dataikuapi.dss.apiservice
 import ansible.module_utils.dataikuapi.dss.dataset
-import ansible.module_utils.dataikuapi.dss.discussion
 import ansible.module_utils.dataikuapi.dss.discussion
 import ansible.module_utils.dataikuapi.dss.future
 import ansible.module_utils.dataikuapi.dss.job
@@ -37,6 +35,4 @@ import ansible.module_utils.dataikuapi.dss.statistics
 import ansible.module_utils.dataikuapi.dss.utils
 import ansible.module_utils.dataikuapi.dss.wiki
 import ansible.module_utils.dataikuapi.dssclient
-import ansible.module_utils.dataikuapi.dssclient
-import ansible.module_utils.dataikuapi.utils
 import ansible.module_utils.dataikuapi.utils
