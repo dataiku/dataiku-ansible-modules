@@ -34,7 +34,7 @@ You can use a `yaml` file with a content like this:
 ```YAML
 ---
 - src: git+https://github.com/dataiku/dataiku-api-client-python
-  name: dataiku-ansible-modules
+  name: dataiku-api-client-python
   version: release/7.0
 - src: git+https://github.com/dataiku/dataiku-ansible-modules
   name: dataiku-ansible-modules
@@ -73,11 +73,6 @@ Find some more examples [here](doc/examples/).
 - hosts: servers
   become: true
   become_user: dataiku
-  pre_tasks:
-    - name:  Install the Dataiku DSS Api
-      become_user: root
-      pip:
-        name: "git+https://github.com/dataiku/dataiku-api-client-python#egg=dataiku-api-client"
   roles:
      - dataiku-ansible-modules # Makes the modules available
   tasks:
