@@ -91,7 +91,7 @@ def run_module():
 
         general_settings.push_container_exec_base_images()
 
-        result["changed"] = true
+        result["changed"] = True
 
         module.exit_json(**result)
     except Exception as e:
