@@ -89,6 +89,11 @@ def run_module():
         client = get_client_from_parsed_args(module)
         general_settings = client.get_general_settings()
 
+        if module.check_mode:
+            # Dry run, suppose things will go as planned down the line
+            result["changed"] = True
+            module.exit_json(**result)
+
         general_settings.push_container_exec_base_images()
 
         result["changed"] = True
