@@ -12,14 +12,14 @@ Installation
 If the first directory of your roles path is writable, just use:
 
  ```
-ansible-galaxy install git+https://github.com/dataiku/dataiku-api-client-python,release/7.0
+ansible-galaxy install git+https://github.com/dataiku/dataiku-api-client-python,release/8.0
 ansible-galaxy install git+https://github.com/dataiku/dataiku-ansible-modules
  ```
 
 Or specify the path in which you want the role to be installed:
 
  ```
-ansible-galaxy install git+https://github.com/dataiku/dataiku-api-client-pythin,release/7.0 --roles-path=/path/to/your/roles
+ansible-galaxy install git+https://github.com/dataiku/dataiku-api-client-python,release/8.0 --roles-path=/path/to/your/roles
 ansible-galaxy install git+https://github.com/dataiku/dataiku-ansible-modules --roles-path=/path/to/your/roles
  ```
 
@@ -35,7 +35,7 @@ You can use a `yaml` file with a content like this:
 ---
 - src: git+https://github.com/dataiku/dataiku-api-client-python
   name: dataiku-api-client-python
-  version: release/7.0
+  version: release/8.0
 - src: git+https://github.com/dataiku/dataiku-ansible-modules
   name: dataiku-ansible-modules
   version: master
