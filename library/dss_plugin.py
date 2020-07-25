@@ -75,9 +75,10 @@ options:
             - Is the plugin is supposed to be there or not. Either "present" or "absent". Default "present"
               WARNING: absent is only supported in check mode, not implemented for real.
         required: false
-    force_update:
+    force:
         description:
-            - Force an update based on describes sources even if already installed
+            - For install: Force an update based on describes sources even if already installed
+            - For delete: Force delete even if usage is detected
         required: false
 author:
     - Jean-Bernard Jansen (jean-bernard.jansen@dataiku.com)
@@ -108,7 +109,7 @@ def run_module():
         git_checkout=dict(type="str", required=False, default="master"),
         git_subpath=dict(type="str", required=False, default=None),
         settings=dict(type="dict", required=False, default={}),
-        force_update=dict(type="bool", required=False, default=False),
+        force=dict(type="bool", required=False, default=False),
     )
     add_dss_connection_args(module_args)
 
@@ -171,9 +172,9 @@ def run_module():
             if not exists:
                 future = None
                 if args.zip_file is not None:
-                    pass
+                    future = client.install_plugin_from_archive(args.zip_file)
                 elif args.git_repository_url is not None:
-                    pass
+                    future = client.install_plugin_from_git(args.git_repository_url, args.git_checkout, args.git_subpath)
                 else:
                     # Install from store
                     future = client.install_plugin_from_store(args.plugin_id)
@@ -183,27 +184,29 @@ def run_module():
                 new_settings = copy.deepcopy(current_settings)
                 if args.settings is not None:
                     update(new_settings, args.settings)
-            elif args.force_update:
+            elif args.force:
                 future = None
                 if args.zip_file is not None:
-                    pass
+                    future = plugin.update_from_zip(args.zip_file)
                 elif args.git_repository_url is not None:
-                    pass
+                    future = plugin.update_from_git(args.git_repository_url, args.git_checkout, args.git_subpath)
                 else:
                     # Install from store
                     future = plugin.update_from_store()
                 future.wait_for_result()
                 plugin = client.get_plugin(args.plugin_id)
 
+            result["dss_plugin"]["settings"] = new_settings
+            update(result["dss_plugin"], plugin_dict[args.plugin_id])
+
         if args.settings is not None and args.state == "present" and new_settings != current_settings:
             settings_handle = plugin.get_settings()
             update(settings_handle.settings, new_settings)
-
-            print("Yaye")
             settings_handle.save()
 
         if args.state == "absent" and exists:
-            raise "Plugin deletion not supported yet."
+            future = plugin.delete(force=args.force)
+            future.wait_for_result()
 
         module.exit_json(**result)
     except Exception as e:
