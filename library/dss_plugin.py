@@ -110,6 +110,7 @@ def run_module():
         git_subpath=dict(type="str", required=False, default=None),
         settings=dict(type="dict", required=False, default={}),
         force=dict(type="bool", required=False, default=False),
+        #create_code_env=dict(type="bool", required=False, default=False),
     )
     add_dss_connection_args(module_args)
 
@@ -123,6 +124,7 @@ def run_module():
     exists = False
     create = False
     plugin = None
+    create_code_env = False
     current_settings = {}
     try:
         client = get_client_from_parsed_args(module)
@@ -145,7 +147,7 @@ def run_module():
         if args.settings is not None:
             update(new_settings, args.settings)
         
-        result["changed"] = create or (exists and (args.state == "absent" or (args.settings is not None and new_settings != current_settings)))
+        result["changed"] = create or (exists and (args.state == "absent" or (args.settings is not None and new_settings != current_settings) or (create_code_env and "codeEnvName" not in current_settings)))
         if result["changed"]:
             if create:
                 result["message"] = "CREATED"
@@ -157,6 +159,7 @@ def run_module():
                 else:
                     result["message"] = "UNMODIFIED"
 
+        result["job_results"] = []
         result["dss_plugin"] = {
             "id": args.plugin_id,
         }
@@ -169,6 +172,7 @@ def run_module():
 
         # Apply the changes
         if args.state == "present":
+            plugin_desc = {}
             if not exists:
                 future = None
                 if args.zip_file is not None:
@@ -178,12 +182,15 @@ def run_module():
                 else:
                     # Install from store
                     future = client.install_plugin_from_store(args.plugin_id)
-                future.wait_for_result()
+                result["job_results"].append(future.wait_for_result())
+                plugin_desc = result["job_results"][-1].get("pluginDesc")
+
+                # Required to relist for the meta
+                plugins = client.list_plugins()
+                plugin_dict = { plugin['id']: plugin for plugin in plugins }
                 plugin = client.get_plugin(args.plugin_id)
-                current_settings = copy.deepcopy(plugin.get_settings().get_raw())
-                new_settings = copy.deepcopy(current_settings)
-                if args.settings is not None:
-                    update(new_settings, args.settings)
+                update(result["dss_plugin"], plugin_dict[args.plugin_id])
+
             elif args.force:
                 future = None
                 if args.zip_file is not None:
@@ -193,20 +200,35 @@ def run_module():
                 else:
                     # Install from store
                     future = plugin.update_from_store()
-                future.wait_for_result()
-                plugin = client.get_plugin(args.plugin_id)
+                result["job_results"].append(future.wait_for_result())
+                plugin_desc = result["job_results"][-1].get("pluginDesc")
 
+            # Force refetch settings
+            current_settings = copy.deepcopy(plugin.get_settings().get_raw())
+            new_settings = copy.deepcopy(current_settings)
+            if args.settings is not None:
+                update(new_settings, args.settings)
+
+            if "codeEnvSpec" in plugin_desc:
+                create_code_env = True
             result["dss_plugin"]["settings"] = new_settings
-            update(result["dss_plugin"], plugin_dict[args.plugin_id])
 
-        if args.settings is not None and args.state == "present" and new_settings != current_settings:
+        code_env_install_result = None
+        if args.state == "present" and create_code_env and "codeEnvName" not in new_settings:
+            future = plugin.create_code_env()
+            code_env_install_result = future.wait_for_result()
+            new_settings["codeEnvName"] = code_env_install_result.get("envName")
+            result["job_results"].append(code_env_install_result)
+
+        if (args.settings is not None or code_env_install_result is not None) and args.state == "present" and new_settings != current_settings:
             settings_handle = plugin.get_settings()
             update(settings_handle.settings, new_settings)
             settings_handle.save()
+            result["dss_plugin"]["settings"] = new_settings
 
         if args.state == "absent" and exists:
             future = plugin.delete(force=args.force)
-            future.wait_for_result()
+            result["job_results"].append(future.wait_for_result())
 
         module.exit_json(**result)
     except Exception as e:
