@@ -80,6 +80,13 @@ options:
             - For install: Force an update based on describes sources even if already installed
             - For delete: Force delete even if usage is detected
         required: false
+    install_code_env:
+        description:
+            - Installs the code-env if the plugin expects one. Warning: it only works
+              at effective install or update. If the plugin is already installed and 
+              not updated, and the code-env is not installed, this will be ineffective.
+        required: False
+        default: True
 author:
     - Jean-Bernard Jansen (jean-bernard.jansen@dataiku.com)
 """
@@ -110,7 +117,7 @@ def run_module():
         git_subpath=dict(type="str", required=False, default=None),
         settings=dict(type="dict", required=False, default={}),
         force=dict(type="bool", required=False, default=False),
-        #create_code_env=dict(type="bool", required=False, default=False),
+        install_code_env=dict(type="bool", required=False, default=True),
     )
     add_dss_connection_args(module_args)
 
@@ -209,7 +216,7 @@ def run_module():
             if args.settings is not None:
                 update(new_settings, args.settings)
 
-            if "codeEnvSpec" in plugin_desc:
+            if "codeEnvSpec" in plugin_desc and args.install_code_env:
                 create_code_env = True
             result["dss_plugin"]["settings"] = new_settings
 
@@ -228,7 +235,8 @@ def run_module():
 
         if args.state == "absent" and exists:
             future = plugin.delete(force=args.force)
-            result["job_results"].append(future.wait_for_result())
+            if future.job_id is not None:
+                result["job_results"].append(future.wait_for_result())
 
         module.exit_json(**result)
     except Exception as e:
