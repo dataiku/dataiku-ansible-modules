@@ -65,16 +65,16 @@ options:
         description:
             - The version to affect when used with automation node
         required: true
+    core_packages:
+        description:
+            - Installs the core packages required tu use Dataiku API
+        required: false
     jupyter_support:
         description:
             - Enable jupyter support for this code env
         required: false
     permissions:
         required: False
-    desc:
-        description:
-            - Additional configuration of the code env. Depends on its type, see documentation
-        required: false
     update:
         description:
             - Update packages to match spec if the code env def changed. Default true.
@@ -88,13 +88,48 @@ author:
 """
 
 EXAMPLES = """
+---
+- name: Get the API Key
+  become: true
+  become_user: dataiku
+  dss_get_credentials:
+    datadir: /home/dataiku/dss
+    api_key_name: myadminkey
+  register: dss_connection_info
+
+- name: Installs a basic code env
+  dss_code_env:
+    connect_to: "{{dss_connection_info}}"
+    name: basic-machine-learning
+    deployment_mode: DESIGN_MANAGED
+    lang: PYTHON
+    owner: admin
+    python_interpreter: PYTHON36
+    package_list:
+    - scikit-learn>=0.20,<0.21
+    - scipy>=1.1,<1.2
+    - xgboost==0.81
+    - statsmodels>=0.9,<0.10
+    - jinja2>=2.10,<2.11
+    - flask>=1.0,<1.1
+
+- name: Add some permissions
+  dss_code_env:
+    connect_to: "{{dss_connection_info}}"
+    name: basic-machine-learning
+    usable_by_all: false
+    permissions:
+    - group: data-team
+      manageUsers: false
+      update: true
+      use: true
 """
 
 RETURN = """
 dss_code_env:
     description: Return current status of the infra
     type: dict
-message:
+message:@
     description: CREATED, DELETED, MODIFIED or UNCHANGED
     type: str
 """
@@ -127,17 +162,17 @@ def run_module():
         lang=dict(type="str", required=True),
         deployment_mode=dict(type="str", required=False, default=None),
         version=dict(type="str", required=False, default=None),
-        jupyter_support=dict(type="bool", required=False, default=None),
+        core_packages=dict(type="bool", required=False, default=True),
+        jupyter_support=dict(type="bool", required=False, default=True),
         update=dict(type="bool", required=False, default=True),
-        #desc=dict(type="dict", required=False, default=None),
-        permissions=dict(type="dict", required=False, default=None),
+        permissions=dict(type="list", required=False, default=None),
         usable_by_all=dict(type="bool", required=False, default=None),
         owner=dict(type="str", required=False, default=None),
         conda_environment=dict(type="str", required=False, default=None),
         package_list=dict(type="list", required=False, default=None),
         external_conda_env_name=dict(type="str", required=False, default=None),
-        install_core_packages=dict(type="bool", required=False, default=None),
-        yarn_python_bin=dict(type="str", required=False, default=None),
+        python_interpreter=dict(type="str", required=False, default=None),
+        desc=dict(type="dict", required=False, default=None),
     )
     add_dss_connection_args(module_args)
 
@@ -170,20 +205,25 @@ def run_module():
         required_code_env_def["permissions"] = args.permissions
     if args.usable_by_all is not None:
         required_code_env_def["usableByAll"] = args.usable_by_all
-    if args.owner is not None:
-        required_code_env_def["owner"] = args.owner
     if args.conda_environment is not None:
         versioned_required_code_env_def["specCondaEnvironment"] = args.conda_environment
     if args.package_list is not None:
         versioned_required_code_env_def["specPackageList"] = "\n".join(args.package_list)
     if args.external_conda_env_name is not None:
         versioned_required_code_env_def["externalCondaEnvName"] = args.external_conda_env_name
-    if args.install_core_packages is not None:
-        versioned_required_code_env_def["desc"]["installCorePackages"] = args.install_core_packages
-    if args.jupyter_support is not None:
+    if args.owner is not None:
+        if args.deployment_mode in ["DESIGN_MANAGED", "DESIGN_MANAGED", "PLUGIN_MANAGED", "PLUGIN_NON_MANAGED"]:
+            versioned_required_code_env_def["desc"]["owner"] = args.owner
+        else:
+            versioned_required_code_env_def["owner"] = args.owner
+    if args.desc is not None:
+        update(versioned_required_code_env_def["desc"], args.desc)
+
+    if args.core_packages and "installCorePackages" not in versioned_required_code_env_def["desc"]:
+        versioned_required_code_env_def["desc"]["installCorePackages"] = args.core_packages
+
+    if args.jupyter_support and "installJupyterSupport" not in versioned_required_code_env_def["desc"]:
         versioned_required_code_env_def["desc"]["installJupyterSupport"] = args.jupyter_support
-    if args.yarn_python_bin is not None:
-        versioned_required_code_env_def["desc"]["yarnPythonBin"] = args.yarn_python_bin
 
     update_packages = False
 
@@ -203,8 +243,16 @@ def run_module():
         if exists:
             code_env = client.get_code_env(args.lang, args.name)
             code_env_def = code_env.get_definition()
-            if "specPackageList" in versioned_required_code_env_def and args.version in code_env_def and "specPackageList" in code_env_def[args.version] and versioned_required_code_env_def["specPackageList"] != code_env_def[args.version]["specPackageList"]:
-                update_packages = True
+            if args.version is not None:
+                if "specPackageList" in versioned_required_code_env_def and args.version in code_env_def and "specPackageList" in code_env_def[args.version] and versioned_required_code_env_def["specPackageList"] != code_env_def[args.version]["specPackageList"]:
+                    update_packages = True
+                if "installJupyterSupport" in versioned_required_code_env_def["desc"] and "installJupyterSupport" in code_env_def[args.version]["desc"] and versioned_required_code_env_def["desc"]["installJupyterSupport"] != code_env_def[args.version]["desc"]["installJupyterSupport"]:
+                    update_packages = True
+            else:
+                if "specPackageList" in required_code_env_def and "specPackageList" in code_env_def and required_code_env_def["specPackageList"] != code_env_def["specPackageList"]:
+                    update_packages = True
+                if "installJupyterSupport" in required_code_env_def["desc"] and "installJupyterSupport" in code_env_def["desc"] and required_code_env_def["desc"]["installJupyterSupport"] != code_env_def["desc"]["installJupyterSupport"]:
+                    update_packages = True
     
         new_code_env_def = copy.deepcopy(code_env_def)
         update(new_code_env_def, required_code_env_def)
@@ -231,6 +279,8 @@ def run_module():
             if create:
                 if args.deployment_mode is None:
                     raise Exception("The argument deployment_mode is mandatory to create a code env")
+                if args.python_interpreter is not None:
+                    versioned_required_code_env_def["pythonInterpreter"] = args.python_interpreter
                 code_env = client.create_code_env(args.lang, args.name, args.deployment_mode, required_code_env_def)
                 code_env_def = code_env.get_definition()
                 new_code_env_def = copy.deepcopy(code_env_def)
@@ -239,11 +289,11 @@ def run_module():
             if new_code_env_def != code_env_def:
                 code_env.set_definition(new_code_env_def)
 
-            if args.jupyter_support:
-                code_env.set_jupyter_support(args.jupyter_support)
-
             if args.update or create or update_packages:
                 code_env.update_packages()
+
+            if args.jupyter_support:
+                code_env.set_jupyter_support(args.jupyter_support)
 
             code_env_def = code_env.get_definition()
             result["dss_code_env"] = code_env_def
