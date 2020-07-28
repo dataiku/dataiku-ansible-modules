@@ -92,17 +92,28 @@ author:
 """
 
 EXAMPLES = """
+---
+- name: Installs plugin from the store
+  dss_plugin:
+    api_key: XXX # It is required to use a personal API Key for plugins, global api key not accepted
+    host: XXX
+    port: "10000"
+    plugin_id: timeseries-preparation
+    settings:
+      detailsNotVisible: true
 """
 
 RETURN = """
 dss_plugin:
     description: Return resulting status of the plugin
     type: dict
+job_results:
+    description: A list for the results of DSSFuture calls implicated if there is any
+    type: list
 message:
     description: CREATED, DELETED, MODIFIED or UNMODIFIED
     type: str
 """
-
 
 
 def run_module():
