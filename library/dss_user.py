@@ -156,7 +156,7 @@ def run_module():
     module_args = dict(
         login=dict(type="str", required=True),
         password=dict(type="str", required=False, default=None, no_log=True),
-        set_password_at_creation_only=dict(type="bool", required=False, default=True),
+        set_password_at_creation_only=dict(type="bool", required=False, default=True, no_log=False),
         email=dict(type="str", required=False, default=None),
         display_name=dict(type="str", required=False, default=None),
         groups=dict(type="list", required=False, default=None),
