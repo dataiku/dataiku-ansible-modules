@@ -243,16 +243,19 @@ def run_module():
         if exists:
             code_env = client.get_code_env(args.lang, args.name)
             code_env_def = code_env.get_definition()
-            if args.version is not None:
-                if "specPackageList" in versioned_required_code_env_def and args.version in code_env_def and "specPackageList" in code_env_def[args.version] and versioned_required_code_env_def["specPackageList"] != code_env_def[args.version]["specPackageList"]:
-                    update_packages = True
-                if "installJupyterSupport" in versioned_required_code_env_def["desc"] and "installJupyterSupport" in code_env_def[args.version]["desc"] and versioned_required_code_env_def["desc"]["installJupyterSupport"] != code_env_def[args.version]["desc"]["installJupyterSupport"]:
-                    update_packages = True
-            else:
-                if "specPackageList" in required_code_env_def and "specPackageList" in code_env_def and required_code_env_def["specPackageList"] != code_env_def["specPackageList"]:
-                    update_packages = True
-                if "installJupyterSupport" in required_code_env_def["desc"] and "installJupyterSupport" in code_env_def["desc"] and required_code_env_def["desc"]["installJupyterSupport"] != code_env_def["desc"]["installJupyterSupport"]:
-                    update_packages = True
+            if args.deployment_mode is None:
+                args.deployment_mode = code_env_def["deploymentMode"]
+            if "NON_MANAGED" not in args.deployment_mode:
+                if args.version is not None:
+                    if "specPackageList" in versioned_required_code_env_def and args.version in code_env_def and "specPackageList" in code_env_def[args.version] and versioned_required_code_env_def["specPackageList"] != code_env_def[args.version]["specPackageList"]:
+                        update_packages = True
+                    if "installJupyterSupport" in versioned_required_code_env_def["desc"] and "installJupyterSupport" in code_env_def[args.version]["desc"] and versioned_required_code_env_def["desc"]["installJupyterSupport"] != code_env_def[args.version]["desc"]["installJupyterSupport"]:
+                        update_packages = True
+                else:
+                    if "specPackageList" in required_code_env_def and "specPackageList" in code_env_def and required_code_env_def["specPackageList"] != code_env_def["specPackageList"]:
+                        update_packages = True
+                    if "installJupyterSupport" in required_code_env_def["desc"] and "installJupyterSupport" in code_env_def["desc"] and required_code_env_def["desc"]["installJupyterSupport"] != code_env_def["desc"]["installJupyterSupport"]:
+                        update_packages = True
     
         new_code_env_def = copy.deepcopy(code_env_def)
         update(new_code_env_def, required_code_env_def)
@@ -289,7 +292,7 @@ def run_module():
             if new_code_env_def != code_env_def:
                 code_env.set_definition(new_code_env_def)
 
-            if args.update or create or update_packages:
+            if (args.update or create or update_packages) and "NON_MANAGED" not in args.deployment_mode:
                 code_env.update_packages()
 
             if args.jupyter_support:
