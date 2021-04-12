@@ -61,7 +61,7 @@ def extract_keys(input_data, keys_reference):
     extracted_data = {}
     for k, v in keys_reference.items():
         if isinstance(v, collections.Mapping):
-            extracted_data[k] = extract_keys(input_data[k], v)
+            extracted_data[k] = extract_keys(input_data.get(k,{}), v)
         else:
             extracted_data[k] = input_data.get(k, None)
     return extracted_data
