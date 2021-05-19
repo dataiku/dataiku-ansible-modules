@@ -61,6 +61,13 @@ options:
             - Wether the connection is supposed to exist or not. Possible values are "present" and "absent"
         default: present
         required: false
+    set_encrypted_fields_at_creation_only:
+        description:
+            - If connection already exits, encrypted fields such as "password" are not set again
+            - This is useful to track if a change happened, since tracking encrypted changes is not
+            - possible through the public API only.
+        required: false
+        default: false
 author:
     - Jean-Bernard Jansen (jean-bernard.jansen@dataiku.com)
 """
@@ -138,8 +145,6 @@ connection_template = {
 }
 
 encrypted_fields_list = ["password"]
-pytypefunc = type
-
 
 def run_module():
     # define the available arguments/parameters that a user can pass to
@@ -149,6 +154,7 @@ def run_module():
         state=dict(type="str", required=False, default="present"),
         type=dict(type="str", required=True),
         connection_args=dict(type="dict", default={}, required=False),
+        set_encrypted_fields_at_creation_only=dict(type="bool", default=False, required=False),
         # params=dict(type='dict', default={}, required=False),
     )
     add_dss_connection_args(module_args)
@@ -249,27 +255,18 @@ def run_module():
             elif exists:
                 if args.state == "absent":
                     connection.delete()
-                elif current_def != new_def or 0 < len(encrypted_fields["params"]):
-                    # for field in encrypted_fields_list:
-                    # new_def_value = encrypted_fields.get(field, None)
-                    ## TODO: Bugfix about password here
-                    # del new_def["params"][field]
-                    ##if new_def_value is not None:
-                    ##new_def["params"][field] = new_def_value
-                    ##else:
-                    ##new_def["params"][field] = encrypted_fields_before_change.get(field)
+                elif current_def != new_def or (0 < len(encrypted_fields["params"]) and not args.set_encrypted_fields_at_creation_only):
+                    for field in encrypted_fields_list:
+                        new_def_value = encrypted_fields["params"].get(field, None)
+                        if new_def_value is not None:
+                            new_def["params"][field] = new_def_value
+                        else:
+                            new_def["params"][field] = encrypted_fields_before_change.get(field)
                     result["message"] = str(connection.set_definition(new_def))
-                    # if 0 < len(encrypted_fields["params"]):
-                    ## Get again the definition to test again the encrypted fields
-                    # new_def_after_submit = connection.get_definition()
-                    # encrypted_fields_after_change = {"params":{}}
-                    # for field in encrypted_fields_list:
-                    # value = new_def_after_submit.get(field,None)
-                    # if value is not None:
-                    # encrypted_fields_after_change["params"][field] = value
-                    # if encrypted_fields_before_change != encrypted_fields_after_change:
-                    # result["changed"] = True
-                    # result["message"] = "MODIFIED"
+                    if 0 < len(encrypted_fields["params"]):
+                        # no need to compare, encrypted fields change value if reset
+                        result["changed"] = True
+                        result["message"] = "MODIFIED"
 
         module.exit_json(**result)
     except Exception as e:
