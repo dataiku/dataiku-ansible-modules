@@ -75,12 +75,47 @@ options:
             - Desc
         default: false
         required: false
+    may_create_projects:
+        description:
+            - Desc
+        default: false
+        required: false
+    may_create_projects_from_macros:
+        description:
+            - Desc
+        default: false
+        required: false
+    may_create_projects_from_templates:
+        description:
+            - Desc
+        default: false
+        required: false
+    may_create_projects_from_dataiku_apps:
+        description:
+            - Desc
+        default: false
+        required: false
+    may_create_published_API_services:
+        description:
+            - Desc
+        default: false
+        required: false
+    may_create_published_projects:
+        description:
+            - Desc
+        default: false
+        required: false
+    may_create_active_web_content:
+        description:
+            - Desc
+        default: false
+        required: false
     may_create_code_envs:
         description:
             - Desc
         default: false
         required: false
-    may_create_projects:
+    may_create_clusters:
         description:
             - Desc
         default: false
@@ -100,7 +135,12 @@ options:
             - Desc
         default: false
         required: false
-    may_manage_u_d_m:
+    may_manage_clusters:
+        description:
+            - Desc
+        default: false
+        required: false
+    may_manage_UDM:
         description:
             - Desc
         default: false
@@ -119,6 +159,16 @@ options:
         description:
             - Desc
         default: false
+        required: false
+    may_write_in_root_project_folder:
+        description:
+            - Desc
+        default: false
+        required: false
+    can_obtain_API_ticket_from_cookies_for_groups_regex:
+        description:
+            - Desc
+        default: ""
         required: false
 
 author:
@@ -141,16 +191,25 @@ EXAMPLES = """
     name: dssgroup
     admin: false
     ldap_group_names: ""
+    source_type: LOCAL
     may_create_authenticated_connections: false
     may_create_code_envs: true
+    may_create_clusters: true
     may_create_projects: true
+    may_create_projects_from_macros: true
+    may_create_projects_from_templates: true
+    may_create_active_web_content: true
+    may_create_published_API_services: true
+    may_create_published_projects: true
     may_develop_plugins: true
     may_edit_lib_folders: true
     may_manage_code_envs: true
-    may_manage_u_d_m: true
+    may_manage_clusters: true
+    may_manage_UDM: true
     may_view_indexed_hive_connections: false
     may_write_safe_code: true
     may_write_unsafe_code: true
+    may_write_in_root_project_folder: true
 
 # Creates a group using explicit host/port/key
 # From local machine
@@ -198,14 +257,24 @@ def run_module():
         ldap_group_names=dict(type="list", required=False, default=None),
         may_create_authenticated_connections=dict(type="bool", required=False, default=None),
         may_create_code_envs=dict(type="bool", required=False, default=None),
+        may_create_clusters=dict(type="bool", required=False, default=None),
         may_create_projects=dict(type="bool", required=False, default=None),
+        may_create_projects_from_macros=dict(type="bool", required=False, default=None),
+        may_create_projects_from_templates=dict(type="bool", required=False, default=None),
+        may_create_projects_from_dataiku_apps=dict(type="bool", required=False, default=None),
+        may_create_published_API_services=dict(type="bool", required=False, default=None),
+        may_create_published_projects=dict(type="bool", required=False, default=None),
+        may_create_active_web_content=dict(type="bool", required=False, default=None),
         may_develop_plugins=dict(type="bool", required=False, default=None),
         may_edit_lib_folders=dict(type="bool", required=False, default=None),
         may_manage_code_envs=dict(type="bool", required=False, default=None),
-        may_manage_u_d_m=dict(type="bool", required=False, default=None),
+        may_manage_clusters=dict(type="bool", required=False, default=None),
+        may_manage_UDM=dict(type="bool", required=False, default=None),
         may_view_indexed_hive_connections=dict(type="bool", required=False, default=None),
         may_write_safe_code=dict(type="bool", required=False, default=True),
         may_write_unsafe_code=dict(type="bool", required=False, default=None),
+        may_write_in_root_project_folder=dict(type="bool", required=False, default=None),
+        can_obtain_API_ticket_from_cookies_for_groups_regex=dict(type="str", required=False, default=None),
     )
     add_dss_connection_args(module_args)
 
@@ -254,7 +323,7 @@ def run_module():
             dict_args["ldapGroupNames"] = ",".join(sorted(args.ldap_group_names))
         for key, value in module.params.items():
             if key not in ["connect_to", "host", "port", "api_key", "state", "ldap_group_names"] and value is not None:
-                camelKey = re.sub(r"_[a-z]", lambda x: x.group()[1:].upper(), key)
+                camelKey = re.sub(r"_[a-zA-Z]", lambda x: x.group()[1:].upper(), key)
                 dict_args[camelKey] = value
         new_def.update(dict_args)
 
