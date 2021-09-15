@@ -49,19 +49,25 @@ def get_client_from_parsed_args(module):
 
 # Similar to dict.update but deep
 def update(d, u):
-    for k, v in six.iteritems(u):
-        if isinstance(v, collections.Mapping):
-            d[k] = update(d.get(k, {}), v)
-        else:
-            d[k] = v
+    if isinstance(d, collections.Mapping):
+        for k, v in six.iteritems(u):
+            if isinstance(v, collections.Mapping):
+                d[k] = update(d.get(k, {}), v)
+            else:
+                d[k] = v
+    else:
+        d = u
     return d
 
 
 def extract_keys(input_data, keys_reference):
-    extracted_data = {}
-    for k, v in keys_reference.items():
-        if isinstance(v, collections.Mapping):
-            extracted_data[k] = extract_keys(input_data.get(k,{}), v)
-        else:
-            extracted_data[k] = input_data.get(k, None)
+    if isinstance(input_data, collections.Mapping):
+        extracted_data = {}
+        for k, v in keys_reference.items():
+            if isinstance(v, collections.Mapping):
+                extracted_data[k] = extract_keys(input_data.get(k,{}), v)
+            else:
+                extracted_data[k] = input_data.get(k, None)
+    else:
+        extracted_data = input_data
     return extracted_data
