@@ -194,14 +194,17 @@ def run_module():
             if not exists:
                 future = None
                 if args.zip_file is not None:
-                    future = client.install_plugin_from_archive(args.zip_file)
+                    zipFileObject = open(args.zip_file, 'rb')
+                    client.install_plugin_from_archive(zipFileObject)
                 elif args.git_repository_url is not None:
                     future = client.install_plugin_from_git(args.git_repository_url, args.git_checkout, args.git_subpath)
+                    result["job_results"].append(future.wait_for_result())
+                    plugin_desc = result["job_results"][-1].get("pluginDesc")
                 else:
                     # Install from store
                     future = client.install_plugin_from_store(args.plugin_id)
-                result["job_results"].append(future.wait_for_result())
-                plugin_desc = result["job_results"][-1].get("pluginDesc")
+                    result["job_results"].append(future.wait_for_result())
+                    plugin_desc = result["job_results"][-1].get("pluginDesc")
 
                 # Required to relist for the meta
                 plugins = client.list_plugins()
@@ -212,13 +215,14 @@ def run_module():
             elif args.force:
                 future = None
                 if args.zip_file is not None:
-                    future = plugin.update_from_zip(args.zip_file)
+                    zipFileObject = open(args.zip_file, 'rb')
+                    future = client.install_plugin_from_archive(zipFileObject)
                 elif args.git_repository_url is not None:
                     future = plugin.update_from_git(args.git_repository_url, args.git_checkout, args.git_subpath)
                 else:
                     # Install from store
                     future = plugin.update_from_store()
-                result["job_results"].append(future.wait_for_result())
+                #result["job_results"].append(future.wait_for_result())
                 plugin_desc = result["job_results"][-1].get("pluginDesc")
 
             # Force refetch settings
