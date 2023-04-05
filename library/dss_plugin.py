@@ -216,7 +216,7 @@ def run_module():
                 future = None
                 if args.zip_file is not None:
                     zipFileObject = open(args.zip_file, 'rb')
-                    client.install_plugin_from_archive(zipFileObject)
+                    plugin.update_from_zip(zipFileObject)
                 elif args.git_repository_url is not None:
                     future = plugin.update_from_git(args.git_repository_url, args.git_checkout, args.git_subpath)
                     result["job_results"].append(future.wait_for_result())
