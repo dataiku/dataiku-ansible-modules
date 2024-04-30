@@ -3,14 +3,40 @@ from __future__ import absolute_import
 import collections
 import logging
 import os
+import traceback
 
 import six
+from ansible.module_utils.basic import missing_required_lib
 from ansible.module_utils.dataikuapi.dssclient import DSSClient
+
+# Import Error handling required du to ansible sanity checks handling of non-default python libraries
+# https://docs.ansible.com/ansible/latest/dev_guide/testing/sanity/import.html
+try:
+    from packaging import version
+except ImportError:
+    version = None
+    HAS_PACKAGING_LIBRARY = False
+    PACKAGING_IMPORT_ERROR = traceback.format_exc()
+else:
+    HAS_PACKAGING_LIBRARY = True
+    PACKAGING_IMPORT_ERROR = None
 
 
 class MakeNamespace(object):
     def __init__(self, values):
         self.__dict__.update(values)
+
+
+def is_version_more_recent(module, input_version, baseline):
+    if not HAS_PACKAGING_LIBRARY:
+        module.fail_json(
+            msg=missing_required_lib("packaging"),
+            exception=PACKAGING_IMPORT_ERROR
+        )
+    else:
+        input_version = version.parse(input_version)
+        baseline = version.parse(baseline)
+        return input_version > baseline
 
 
 def add_dss_connection_args(module_args):
@@ -49,19 +75,25 @@ def get_client_from_parsed_args(module):
 
 # Similar to dict.update but deep
 def update(d, u):
-    for k, v in six.iteritems(u):
-        if isinstance(v, collections.Mapping):
-            d[k] = update(d.get(k, {}), v)
-        else:
-            d[k] = v
+    if isinstance(d, collections.Mapping):
+        for k, v in six.iteritems(u):
+            if isinstance(v, collections.Mapping):
+                d[k] = update(d.get(k, {}), v)
+            else:
+                d[k] = v
+    else:
+        d = u
     return d
 
 
 def extract_keys(input_data, keys_reference):
-    extracted_data = {}
-    for k, v in keys_reference.items():
-        if isinstance(v, collections.Mapping):
-            extracted_data[k] = extract_keys(input_data.get(k,{}), v)
-        else:
-            extracted_data[k] = input_data.get(k, None)
+    if isinstance(input_data, collections.Mapping):
+        extracted_data = {}
+        for k, v in keys_reference.items():
+            if isinstance(v, collections.Mapping):
+                extracted_data[k] = extract_keys(input_data.get(k,{}), v)
+            else:
+                extracted_data[k] = input_data.get(k, None)
+    else:
+        extracted_data = input_data
     return extracted_data

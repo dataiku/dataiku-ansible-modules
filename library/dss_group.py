@@ -9,7 +9,7 @@ import traceback
 
 import ansible.module_utils.dataiku_api_preload_imports
 from ansible.module_utils.basic import AnsibleModule
-from ansible.module_utils.dataiku_utils import MakeNamespace, add_dss_connection_args, get_client_from_parsed_args
+from ansible.module_utils.dataiku_utils import MakeNamespace, is_version_more_recent, add_dss_connection_args, get_client_from_parsed_args
 from ansible.module_utils.dataikuapi.dss.admin import DSSGroup
 from ansible.module_utils.dataikuapi.dssclient import DSSClient
 from ansible.module_utils.dataikuapi.utils import DataikuException
@@ -295,6 +295,7 @@ def run_module():
     try:
         client = get_client_from_parsed_args(module)
         group = DSSGroup(client, args.name)
+        dss_version = client.get_instance_info().raw.get("dssVersion")
         exists = True
         create = False
         current = None
@@ -312,14 +313,17 @@ def run_module():
 
         # Sort groups list before comparison as they should be considered sets
         if exists:
-            current["ldapGroupNames"] = ",".join(sorted(current.get("ldapGroupNames", "").split(",")))
+            if is_version_more_recent(module, dss_version, "12.6"):
+                current_ldap_group_names = current.get("ldapGroupNames", "")
+                if current_ldap_group_names:
+                    current["ldapGroupNames"] = ",".join(sorted(current_ldap_group_names.split(",")))
             result["previous_group_def"] = current
         # Build the new user definition
         new_def = copy.deepcopy(current) if exists else {}  # Used for modification
 
         # Transform to camel case
         dict_args = {}
-        if args.ldap_group_names is not None:
+        if args.ldap_group_names is not None and is_version_more_recent(module, dss_version, "12.6"):
             dict_args["ldapGroupNames"] = ",".join(sorted(args.ldap_group_names))
         for key, value in module.params.items():
             if key not in ["connect_to", "host", "port", "api_key", "state", "ldap_group_names"] and value is not None:
