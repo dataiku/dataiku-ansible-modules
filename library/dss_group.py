@@ -312,7 +312,7 @@ def run_module():
 
         # Sort groups list before comparison as they should be considered sets
         if exists:
-            current["ldapGroupNames"] = ",".join(sorted(current.get("ldapGroupNames", "").split(",")))
+            current["ldapGroupNames"] = sorted(current.get("ldapGroupNames", []))
             result["previous_group_def"] = current
         # Build the new user definition
         new_def = copy.deepcopy(current) if exists else {}  # Used for modification
@@ -320,7 +320,7 @@ def run_module():
         # Transform to camel case
         dict_args = {}
         if args.ldap_group_names is not None:
-            dict_args["ldapGroupNames"] = ",".join(sorted(args.ldap_group_names))
+            dict_args["ldapGroupNames"] = sorted(args.ldap_group_names)
         for key, value in module.params.items():
             if key not in ["connect_to", "host", "port", "api_key", "state", "ldap_group_names"] and value is not None:
                 camelKey = re.sub(r"_[a-zA-Z]", lambda x: x.group()[1:].upper(), key)
