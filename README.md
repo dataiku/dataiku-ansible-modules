@@ -1,7 +1,7 @@
 Dataiku DSS modules (Archived)
 ==============================
 
-:warning This project is deprecated in favor of the [Dataiku Ansible Collection](https://github.com/dataiku/dataiku-ansible-collection)
+:warning: This project is deprecated in favor of the [Dataiku Ansible Collection](https://github.com/dataiku/dataiku-ansible-collection)
 
 This role packages custom modules to administrate Dataiku Data Science Studio platforms.
 
